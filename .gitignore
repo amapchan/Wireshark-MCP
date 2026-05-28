@@ -22,6 +22,9 @@ urlhaus_cache.txt
 .mcpregistry_*
 .claude/worktrees/
 
+# OS metadata
+.DS_Store
+
 # Documentation site
 docs-site/node_modules/
 docs-site/.astro/

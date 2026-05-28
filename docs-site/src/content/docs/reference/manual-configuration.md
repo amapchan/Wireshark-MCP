@@ -31,15 +31,3 @@ wireshark-mcp config --format codex-toml
   }
 }
 ```
-
-## Docker SSE mode
-
-```sh
-docker compose up -d
-```
-
-Then point the client to:
-
-```text
-http://localhost:8080/sse
-```

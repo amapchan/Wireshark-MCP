@@ -31,15 +31,3 @@ wireshark-mcp config --format codex-toml
   }
 }
 ```
-
-## Docker SSE 模式
-
-```sh
-docker compose up -d
-```
-
-然后把客户端指向：
-
-```text
-http://localhost:8080/sse
-```

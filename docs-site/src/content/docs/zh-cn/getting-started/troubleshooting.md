@@ -36,15 +36,3 @@ wireshark-mcp config
 ```sh
 wireshark-mcp doctor
 ```
-
-## Docker SSE 模式
-
-```sh
-docker compose up -d
-```
-
-然后把 MCP 客户端指向：
-
-```text
-http://localhost:8080/sse
-```

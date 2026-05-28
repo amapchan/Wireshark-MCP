@@ -1,6 +1,6 @@
 ---
 title: 部署
-description: 本地、Docker 或 HTTP transport 方式运行 Wireshark MCP。
+description: 本地或 HTTP transport 方式运行 Wireshark MCP。
 ---
 
 大多数用户通过 `stdio` 在本机运行 Wireshark MCP，因为抓包文件和 Wireshark 工具通常都在 AI 客户端所在工作站。
@@ -21,20 +21,6 @@ description: 本地、Docker 或 HTTP transport 方式运行 Wireshark MCP。
 ```
 
 这是最简单的模式，也避免把数据包分析工具暴露到网络上。
-
-## Docker SSE
-
-需要隔离运行时可以使用 Docker：
-
-```sh
-docker compose up -d
-```
-
-然后把 MCP 客户端指向：
-
-```text
-http://localhost:8080/sse
-```
 
 ## 目录沙箱
 

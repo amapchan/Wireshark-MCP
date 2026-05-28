@@ -262,7 +262,7 @@ Tool: `wireshark_generate_report(session_id, format="markdown")`
 
 ### Distribution
 
-- All phases distributed via existing channels (PyPI, Homebrew, Docker)
+- All phases distributed via existing channels (PyPI, Homebrew)
 - Fingerprint/playbook data files included in wheel via `pyproject.toml` force-include
 - CLI subcommands for data updates (`update-fingerprints`, `update-playbooks`)
 
