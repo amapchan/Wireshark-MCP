@@ -1,6 +1,6 @@
 ---
 title: Deployment
-description: Run Wireshark MCP locally, in Docker, or through an HTTP transport.
+description: Run Wireshark MCP locally or through an HTTP transport.
 ---
 
 Most users run Wireshark MCP locally through `stdio`, because packet captures and Wireshark tools usually live on the same workstation as the AI client.
@@ -21,20 +21,6 @@ Use local stdio for desktop clients and CLI agents:
 ```
 
 This is the simplest mode and avoids exposing packet-analysis tools over the network.
-
-## Docker SSE
-
-Use Docker when you want an isolated runtime:
-
-```sh
-docker compose up -d
-```
-
-Then point your MCP client to:
-
-```text
-http://localhost:8080/sse
-```
 
 ## Directory sandbox
 

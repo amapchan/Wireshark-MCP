@@ -129,15 +129,3 @@ wireshark-mcp config
 ```
 
 然后把输出结果粘贴到对应客户端的 MCP 配置文件中。
-
-## Docker / SSE 模式
-
-```sh
-docker compose up -d
-```
-
-然后让客户端连接：
-
-```text
-http://localhost:8080/sse
-```

@@ -36,15 +36,3 @@ Live capture may require OS-specific capture permissions. Install Wireshark norm
 ```sh
 wireshark-mcp doctor
 ```
-
-## Docker SSE mode
-
-```sh
-docker compose up -d
-```
-
-Then point your MCP client to:
-
-```text
-http://localhost:8080/sse
-```

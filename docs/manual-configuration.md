@@ -129,15 +129,3 @@ wireshark-mcp config
 ```
 
 Then paste the output into your client's MCP config file.
-
-## Docker / SSE Mode
-
-```sh
-docker compose up -d
-```
-
-Then point your client to:
-
-```text
-http://localhost:8080/sse
-```
