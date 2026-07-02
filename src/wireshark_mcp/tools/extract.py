@@ -13,13 +13,13 @@ def register_extract_tools(mcp: FastMCP, client: TSharkClient) -> None:
     async def wireshark_get_packet_list(
         pcap_file: str, limit: int = 20, offset: int = 0, display_filter: str = "", custom_columns: str = ""
     ) -> str:
-        """[Summary] Packet summary list (top pane). Returns TSV: No/Time/Src/Dst/Proto/Len/Info. custom_columns: comma-separated fields to replace defaults."""
+        """[Summary] Packet list (top pane). TSV: No/Time/Src/Dst/Proto/Len/Info. custom_columns: comma-separated fields."""
         columns = [c.strip() for c in custom_columns.split(",")] if custom_columns else None
         return normalize_tool_result(await client.get_packet_list(pcap_file, limit, offset, display_filter, columns))
 
     @mcp.tool()
     async def wireshark_get_packet_details(pcap_file: str, frame_number: int, layers: str = "") -> str:
-        """[Detail] Full JSON details for a single packet. layers: comma-separated protocol filter (e.g. "ip,tcp,http") to reduce output size."""
+        """[Detail] Full JSON for one packet. layers: comma-separated protocol filter (e.g. "ip,tcp,http")."""
         layer_list = [layer.strip() for layer in layers.split(",")] if layers else None
         return normalize_tool_result(await client.get_packet_details(pcap_file, frame_number, layer_list))
 
@@ -49,7 +49,7 @@ def register_extract_tools(mcp: FastMCP, client: TSharkClient) -> None:
     async def wireshark_extract_fields(
         pcap_file: str, fields: str, display_filter: str = "", limit: int = 100, offset: int = 0
     ) -> str:
-        """[Tabular] Extract specific fields as TSV. fields: comma-separated field names (e.g. "ip.src,tcp.port,http.host")."""
+        """[Tabular] Extract fields as TSV. fields: comma-separated (e.g. "ip.src,tcp.port,http.host")."""
         field_list = [f.strip() for f in fields.split(",")]
         return normalize_tool_result(
             await client.extract_fields(pcap_file, field_list, display_filter, limit=limit, offset=offset)
@@ -106,7 +106,7 @@ def register_extract_tools(mcp: FastMCP, client: TSharkClient) -> None:
         offset_lines: int = 0,
         search_content: str = "",
     ) -> str:
-        """[Stream] Reassemble stream content with pagination. protocol: 'tcp'|'udp'|'tls'|'http'|'http2'. output_mode: 'ascii'|'hex'|'raw'."""
+        """[Stream] Reassemble stream with pagination. protocol: tcp|udp|tls|http|http2. output_mode: ascii|hex|raw."""
         return normalize_tool_result(
             await client.follow_stream(
                 pcap_file,

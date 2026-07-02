@@ -11,6 +11,7 @@ from mcp.server.fastmcp import FastMCP
 from .__init__ import __version__
 from .prompts import register_prompts
 from .resources import register_resources
+from .tools.advanced import register_advanced_tools
 from .tools.agents import register_agent_tools
 from .tools.capture import register_capture_tools
 from .tools.decode import register_decode_tools
@@ -67,6 +68,7 @@ def _build_server(*, host: str, port: int, log_level: LogLevelName) -> FastMCP:
     register_suite_tools(mcp, client)
     register_edit_tools(mcp, client)
     register_import_tools(mcp, client)
+    register_advanced_tools(mcp, client)
 
     # ── Contextual recommendations ─────────────────────────────────────
     # Build and register the contextual tool catalog once for a stable tool surface

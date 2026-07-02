@@ -168,7 +168,7 @@ def make_contextual_forensics_tools(client: TSharkClient) -> list[tuple[str, Any
         return success_response("\n".join(output_parts))
 
     async def wireshark_enrich_metadata(pcap_file: str) -> str:
-        """[Forensics] Extract external IPs/domains for enrichment (GeoIP, ASN, WHOIS pointers). Offline extraction only — does not make network requests."""
+        """[Forensics] Extract external IPs/domains for enrichment (GeoIP, ASN, WHOIS). Offline only, no network requests."""
 
         async def _external_ips() -> str:
             return await client.extract_fields(

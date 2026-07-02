@@ -33,3 +33,16 @@ docs-site/dist/
 # Spec (internal)
 spec/
 .omx/
+
+# Local / duplicated docs
+docs/
+changelog/
+docs-site/README.md
+AGENTS.md
+GEMINI.md
+CODE_OF_CONDUCT.md
+CHANGELOG.md
+
+# Auto-generated skill mirrors (canonical source lives in skills/)
+.github/skills/
+.claude/skills/

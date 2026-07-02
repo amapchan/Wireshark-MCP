@@ -148,6 +148,39 @@ class SuiteOpsMixin(_ClientProtocol):
         cmd = [editcap_path, "-D", str(duplicate_window), input_file, output_file]
         return await self._run_command(cmd)
 
+    async def editcap_extract_frames(self, input_file: str, output_file: str, frame_ranges: str) -> str:
+        """Editcap: Extract specific frame ranges to a new pcap (-r)."""
+        required = self._require_tool("editcap")
+        if not required["success"]:
+            return json.dumps(required)
+
+        validation = self._validate_file(input_file)
+        if not validation["success"]:
+            return json.dumps(validation)
+
+        output_validation = self._validate_output_path(output_file)
+        if not output_validation["success"]:
+            return json.dumps(output_validation)
+
+        if not frame_ranges.strip():
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": {
+                        "type": "InvalidParameter",
+                        "message": "frame_ranges must not be empty. Format: '1-10 15 20-30'",
+                    },
+                }
+            )
+
+        editcap_path = self._get_checked_tool_path("editcap")
+        cmd = [editcap_path, "-r", input_file, output_file] + frame_ranges.strip().split()
+        result = await self._run_command(cmd)
+
+        if os.path.exists(output_file):
+            return f"Extracted frames {frame_ranges} to {output_file}\n{result}"
+        return result
+
     async def text2pcap_import(
         self,
         input_text_file: str,

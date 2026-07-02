@@ -8,7 +8,7 @@ import ast
 from pathlib import Path
 
 TOOLS_DIR = Path(__file__).parent.parent / "src" / "wireshark_mcp" / "tools"
-MAX_TOTAL_CHARS = 8000
+MAX_TOTAL_CHARS = 8500
 MAX_SINGLE_CHARS = 300
 
 

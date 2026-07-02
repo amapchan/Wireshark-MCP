@@ -32,6 +32,7 @@ PROTOCOL_TOOL_MAP: dict[str, list[str]] = {
         "wireshark_extract_http_requests",
         "wireshark_export_objects",
         "wireshark_extract_credentials",
+        "wireshark_yara_scan",
     ],
     # DNS-related
     "dns": [
@@ -76,6 +77,7 @@ PROTOCOL_TOOL_MAP: dict[str, list[str]] = {
         "wireshark_detect_port_scan",
         "wireshark_detect_dos_attack",
         "wireshark_analyze_suspicious_traffic",
+        "wireshark_geoip_enrich",
     ],
     # TCP-specific deep analysis
     "tcp": [
@@ -163,6 +165,7 @@ class ToolRegistry:
         from .anomaly import make_contextual_anomaly_tools
         from .extract import make_contextual_extract_tools
         from .forensics import make_contextual_forensics_tools
+        from .geoip import make_contextual_geoip_tools
         from .ics import make_contextual_ics_tools
         from .investigator import make_contextual_investigator_tools
         from .iot import make_contextual_iot_tools
@@ -172,6 +175,7 @@ class ToolRegistry:
         from .reporter import make_contextual_reporter_tools
         from .security import make_contextual_security_tools
         from .threat import make_contextual_threat_tools
+        from .yara_scan import make_contextual_yara_tools
 
         for factory in [
             make_contextual_extract_tools,
@@ -186,6 +190,8 @@ class ToolRegistry:
             make_contextual_investigator_tools,
             make_contextual_playbook_tools,
             make_contextual_reporter_tools,
+            make_contextual_geoip_tools,
+            make_contextual_yara_tools,
         ]:
             for name, fn in factory(self._client):
                 self._contextual_catalog[name] = fn
@@ -291,7 +297,7 @@ def register_open_file_tool(mcp: FastMCP, client: TSharkClient, registry: ToolRe
 
     @mcp.tool()
     async def wireshark_open_file(pcap_file: str) -> str:
-        """[Entry Point] Open a pcap and get protocol-aware tool recommendations. Returns file info, detected protocols, and relevant tools."""
+        """[Entry Point] Open a pcap and get protocol-aware tool recommendations. Returns protocols and relevant tools."""
         # Step 1: Get protocol hierarchy (required, tshark-backed)
         phs_raw = await client.get_protocol_stats(pcap_file)
         phs_result = parse_tool_result(normalize_tool_result(phs_raw))
