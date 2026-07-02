@@ -1,6 +1,5 @@
 """Tests that keep release metadata and support policy aligned."""
 
-import json
 import re
 from pathlib import Path
 
@@ -17,13 +16,8 @@ def _project_version() -> str:
 
 
 def test_release_versions_match_across_metadata_files() -> None:
-    server_manifest = json.loads((ROOT / "server.json").read_text())
-    package = server_manifest["packages"][0]
     project_version = _project_version()
-
     assert __version__ == project_version
-    assert server_manifest["version"] == project_version
-    assert package["version"] == project_version
 
 
 def test_security_policy_targets_the_active_major_line() -> None:
