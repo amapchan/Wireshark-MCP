@@ -30,7 +30,7 @@
 <p>
   <a href="README.md"><b>English</b></a> •
   <a href="README_zh.md"><b>中文</b></a> •
-  <a href="CHANGELOG.md"><b>Changelog</b></a> •
+  <a href="https://github.com/bx33661/Wireshark-MCP/releases"><b>Changelog</b></a> •
   <a href="CONTRIBUTING.md"><b>Contributing</b></a>
 </p>
 </div>
@@ -39,7 +39,7 @@
 
 ## 这是什么？
 
-一个 [MCP 服务器](https://modelcontextprotocol.io/introduction)，将 `tshark`（及可选的 Wireshark 套件工具）封装为结构化分析接口。支持 Claude Desktop、Claude Code、Cursor、VS Code 等 [18+ MCP 客户端](docs/manual-configuration.md)。
+一个 [MCP 服务器](https://modelcontextprotocol.io/introduction)，将 `tshark`（及可选的 Wireshark 套件工具）封装为结构化分析接口。支持 Claude Desktop、Claude Code、Cursor、VS Code 等 [18+ MCP 客户端](docs-site/src/content/docs/getting-started/mcp-clients.md)。
 
 ```
 你：    "找出这个抓包中所有访问可疑域名的 DNS 查询。"
@@ -60,7 +60,7 @@ wireshark-mcp install   # 自动配置所有检测到的 MCP 客户端
 
 重启你的 AI 客户端即可。
 
-如有问题运行 `wireshark-mcp doctor` 诊断。手动配置或平台特定说明见 [docs/manual-configuration.md](docs/manual-configuration.md)。
+如有问题运行 `wireshark-mcp doctor` 诊断。手动配置或平台特定说明见 [docs-site/src/content/docs/reference/manual-configuration.md](docs-site/src/content/docs/reference/manual-configuration.md)。
 
 ---
 
@@ -100,12 +100,12 @@ wireshark-mcp install   # 自动配置所有检测到的 MCP 客户端
 
 | 主题 | 链接 |
 |------|------|
-| 平台配置（macOS/Linux/Windows） | [docs/platform-validation.md](docs/platform-validation.md) |
-| 手动客户端配置 | [docs/manual-configuration.md](docs/manual-configuration.md) |
-| Prompt 模板 | [docs/prompt-engineering.md](docs/prompt-engineering.md) |
-| 发布清单 | [docs/release-checklist.md](docs/release-checklist.md) |
+| 平台配置（macOS/Linux/Windows） | [docs-site/src/content/docs/reference/toolchain.md](docs-site/src/content/docs/reference/toolchain.md) |
+| 手动客户端配置 | [docs-site/src/content/docs/reference/manual-configuration.md](docs-site/src/content/docs/reference/manual-configuration.md) |
+| Prompt 模板 | [docs-site/src/content/docs/reference/playbooks.mdx](docs-site/src/content/docs/reference/playbooks.mdx) |
+| 发布清单 | [docs-site/src/content/docs/reference/changelog.md](docs-site/src/content/docs/reference/changelog.md) |
 | 贡献指南 | [CONTRIBUTING.md](CONTRIBUTING.md) |
-| 更新日志 | [CHANGELOG.md](CHANGELOG.md) |
+| 更新日志 | [GitHub Releases](https://github.com/bx33661/Wireshark-MCP/releases) |
 | 安全策略 | [SECURITY.md](SECURITY.md) |
 
 ---

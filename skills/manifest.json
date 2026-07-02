@@ -10,9 +10,7 @@
         ".claude/skills/wireshark-traffic-analysis"
       ],
       "root_instruction_files": [
-        "AGENTS.md",
-        "CLAUDE.md",
-        "GEMINI.md"
+        "CLAUDE.md"
       ],
       "copilot": {
         "instructions_file": ".github/copilot-instructions.md",

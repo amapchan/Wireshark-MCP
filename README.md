@@ -30,7 +30,7 @@
 <p>
   <a href="README.md"><b>English</b></a> •
   <a href="README_zh.md"><b>中文</b></a> •
-  <a href="CHANGELOG.md"><b>Changelog</b></a> •
+  <a href="https://github.com/bx33661/Wireshark-MCP/releases"><b>Changelog</b></a> •
   <a href="CONTRIBUTING.md"><b>Contributing</b></a>
 </p>
 </div>
@@ -39,7 +39,7 @@
 
 ## What is this?
 
-An [MCP server](https://modelcontextprotocol.io/introduction) that wraps `tshark` (and optional Wireshark suite tools) into a structured analysis interface. Works with Claude Desktop, Claude Code, Cursor, VS Code, and [18+ other MCP clients](docs/manual-configuration.md).
+An [MCP server](https://modelcontextprotocol.io/introduction) that wraps `tshark` (and optional Wireshark suite tools) into a structured analysis interface. Works with Claude Desktop, Claude Code, Cursor, VS Code, and [18+ other MCP clients](docs-site/src/content/docs/getting-started/mcp-clients.md).
 
 ```
 You:    "Find all DNS queries going to suspicious domains in this capture."
@@ -60,7 +60,7 @@ wireshark-mcp install   # auto-configures all detected MCP clients
 
 Restart your AI client — done.
 
-Run `wireshark-mcp doctor` if anything looks off. See [docs/manual-configuration.md](docs/manual-configuration.md) for manual setup or platform-specific notes.
+Run `wireshark-mcp doctor` if anything looks off. See [docs-site/src/content/docs/reference/manual-configuration.md](docs-site/src/content/docs/reference/manual-configuration.md) for manual setup or platform-specific notes.
 
 ---
 
@@ -100,12 +100,12 @@ The server starts with only `tshark` required. Optional tools (`capinfos`, `merg
 
 | Topic | Link |
 |-------|------|
-| Platform setup (macOS/Linux/Windows) | [docs/platform-validation.md](docs/platform-validation.md) |
-| Manual client configuration | [docs/manual-configuration.md](docs/manual-configuration.md) |
-| Prompt templates | [docs/prompt-engineering.md](docs/prompt-engineering.md) |
-| Release checklist | [docs/release-checklist.md](docs/release-checklist.md) |
+| Platform setup (macOS/Linux/Windows) | [docs-site/src/content/docs/reference/toolchain.md](docs-site/src/content/docs/reference/toolchain.md) |
+| Manual client configuration | [docs-site/src/content/docs/reference/manual-configuration.md](docs-site/src/content/docs/reference/manual-configuration.md) |
+| Prompt templates | [docs-site/src/content/docs/reference/playbooks.mdx](docs-site/src/content/docs/reference/playbooks.mdx) |
+| Release checklist | [docs-site/src/content/docs/reference/changelog.md](docs-site/src/content/docs/reference/changelog.md) |
 | Contributing | [CONTRIBUTING.md](CONTRIBUTING.md) |
-| Changelog | [CHANGELOG.md](CHANGELOG.md) |
+| Changelog | [GitHub Releases](https://github.com/bx33661/Wireshark-MCP/releases) |
 | Security policy | [SECURITY.md](SECURITY.md) |
 
 ---

@@ -37,5 +37,5 @@
 
 - [ ] Updated `README.md`
 - [ ] Updated `README_zh.md`
-- [ ] Updated `CHANGELOG.md` (under `[Unreleased]`)
+- [ ] Updated release notes (if applicable)
 - [ ] N/A

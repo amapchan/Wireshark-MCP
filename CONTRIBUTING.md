@@ -71,8 +71,8 @@ src/wireshark_mcp/
 5. **Add a change record** under `spec/changes/` following the format in `spec/README.md`
 6. **Open a Pull Request** — fill in the PR template
 
-For release work, use [docs/release-checklist.md](docs/release-checklist.md) and
-[docs/platform-validation.md](docs/platform-validation.md) before tagging a version.
+For release work, use [docs-site/src/content/docs/reference/changelog.md](docs-site/src/content/docs/reference/changelog.md) and
+[docs-site/src/content/docs/reference/toolchain.md](docs-site/src/content/docs/reference/toolchain.md) before tagging a version.
 
 ## Adding a New Tool
 

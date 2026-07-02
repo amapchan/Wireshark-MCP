@@ -41,9 +41,7 @@ def build_manifest(skill_dirs: list[Path]) -> dict[str, object]:
                     f".claude/skills/{skill_name}",
                 ],
                 "root_instruction_files": [
-                    "AGENTS.md",
                     "CLAUDE.md",
-                    "GEMINI.md",
                 ],
                 "copilot": {
                     "instructions_file": ".github/copilot-instructions.md",
