@@ -133,7 +133,7 @@ def make_contextual_anomaly_tools(client: TSharkClient) -> list[tuple[str, Any]]
         return success_response("\n".join(output_parts))
 
     async def wireshark_detect_exfiltration(pcap_file: str, limit: int = 10000) -> str:
-        """[Anomaly] Detect potential data exfiltration (large outbound transfers, DNS query length anomalies, non-standard port usage)."""
+        """[Anomaly] Detect data exfiltration (large outbound transfers, DNS length anomalies, non-standard ports)."""
         # Two concurrent extractions
         tcp_task = client.extract_fields(
             pcap_file,

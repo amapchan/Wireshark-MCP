@@ -34,3 +34,12 @@ class _ClientProtocol(Protocol):
         display_filter: str = "",
         custom_columns: list[str] | None = None,
     ) -> str: ...
+    async def extract_fields(
+        self,
+        pcap_file: str,
+        fields: list[str],
+        display_filter: str = "",
+        separator: str = "\t",
+        limit: int = 100,
+        offset: int = 0,
+    ) -> str: ...

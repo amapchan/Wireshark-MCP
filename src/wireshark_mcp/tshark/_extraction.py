@@ -176,3 +176,251 @@ class ExtractionMixin(_ClientProtocol):
             "expert",
         ]
         return await self._run_command(cmd)
+
+    async def decrypt_tls_traffic(
+        self, pcap_file: str, keylog_file: str, display_filter: str = "", limit: int = 100
+    ) -> str:
+        """Decrypt TLS and extract decrypted HTTP/application data."""
+        validation = self._validate_file(pcap_file)
+        if not validation["success"]:
+            return json.dumps(validation)
+
+        keylog_validation = self._validate_file(keylog_file)
+        if not keylog_validation["success"]:
+            return json.dumps(keylog_validation)
+
+        cmd = [
+            self.tshark_path,
+            "-r",
+            pcap_file,
+            "-o",
+            f"tls.keylog_file:{keylog_file}",
+            "-T",
+            "fields",
+            "-e",
+            "frame.number",
+            "-e",
+            "ip.src",
+            "-e",
+            "ip.dst",
+            "-e",
+            "http.request.method",
+            "-e",
+            "http.request.uri",
+            "-e",
+            "http.host",
+            "-e",
+            "http.response.code",
+            "-e",
+            "http.content_type",
+            "-E",
+            "header=y",
+            "-E",
+            "separator=\t",
+        ]
+        if display_filter:
+            cmd.extend(["-Y", display_filter])
+        else:
+            cmd.extend(["-Y", "http"])
+        cmd.extend(["-c", str(limit)])
+        return await self._run_command(cmd)
+
+    async def decrypt_wpa_traffic(
+        self, pcap_file: str, wpa_keys: list[str], display_filter: str = "", limit: int = 100
+    ) -> str:
+        """Decrypt WPA/WPA2 traffic using passphrase keys."""
+        validation = self._validate_file(pcap_file)
+        if not validation["success"]:
+            return json.dumps(validation)
+
+        if not wpa_keys:
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": {
+                        "type": "InvalidParameter",
+                        "message": "At least one WPA key required. Format: 'passphrase:SSID' or just 'passphrase'",
+                    },
+                }
+            )
+
+        cmd = [self.tshark_path, "-r", pcap_file, "-o", "wlan.enable_decryption:TRUE"]
+        for key in wpa_keys:
+            cmd.extend(["-o", f'uat:80211_keys:"wpa-pwd:{key}",1'])
+
+        cmd.extend(
+            [
+                "-T",
+                "fields",
+                "-e",
+                "frame.number",
+                "-e",
+                "wlan.sa",
+                "-e",
+                "wlan.da",
+                "-e",
+                "ip.src",
+                "-e",
+                "ip.dst",
+                "-e",
+                "_ws.col.Protocol",
+                "-e",
+                "_ws.col.Info",
+                "-E",
+                "header=y",
+                "-E",
+                "separator=\t",
+            ]
+        )
+        if display_filter:
+            cmd.extend(["-Y", display_filter])
+        cmd.extend(["-c", str(limit)])
+        return await self._run_command(cmd)
+
+    async def extract_with_decode_as(
+        self, pcap_file: str, decode_rules: list[str], fields: list[str], display_filter: str = "", limit: int = 100
+    ) -> str:
+        """Extract fields with decode-as rules applied."""
+        validation = self._validate_file(pcap_file)
+        if not validation["success"]:
+            return json.dumps(validation)
+
+        if not decode_rules:
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": {
+                        "type": "InvalidParameter",
+                        "message": "At least one decode rule required. Format: 'tcp.port==8080,http'",
+                    },
+                }
+            )
+
+        cmd = [self.tshark_path, "-r", pcap_file]
+        for rule in decode_rules:
+            cmd.extend(["-d", rule])
+
+        if not fields:
+            fields = ["frame.number", "ip.src", "ip.dst", "_ws.col.Protocol", "_ws.col.Info"]
+
+        cmd.extend(["-T", "fields"])
+        for field in fields:
+            cmd.extend(["-e", field])
+        cmd.extend(["-E", "header=y", "-E", "separator=\t"])
+        if display_filter:
+            cmd.extend(["-Y", display_filter])
+        cmd.extend(["-c", str(limit)])
+        return await self._run_command(cmd)
+
+    async def extract_with_prefs(
+        self, pcap_file: str, prefs: list[str], fields: list[str], display_filter: str = "", limit: int = 100
+    ) -> str:
+        """Extract fields with protocol preference overrides."""
+        validation = self._validate_file(pcap_file)
+        if not validation["success"]:
+            return json.dumps(validation)
+
+        if not prefs:
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": {
+                        "type": "InvalidParameter",
+                        "message": "At least one preference required. Format: 'tcp.desegment_tcp_streams:TRUE'",
+                    },
+                }
+            )
+
+        cmd = [self.tshark_path, "-r", pcap_file]
+        for pref in prefs:
+            cmd.extend(["-o", pref])
+
+        if not fields:
+            fields = ["frame.number", "ip.src", "ip.dst", "_ws.col.Protocol", "_ws.col.Info"]
+
+        cmd.extend(["-T", "fields"])
+        for field in fields:
+            cmd.extend(["-e", field])
+        cmd.extend(["-E", "header=y", "-E", "separator=\t"])
+        if display_filter:
+            cmd.extend(["-Y", display_filter])
+        cmd.extend(["-c", str(limit)])
+        return await self._run_command(cmd)
+
+    async def extract_kerberos(self, pcap_file: str, limit: int = 100) -> str:
+        """Extract Kerberos authentication data."""
+        validation = self._validate_file(pcap_file)
+        if not validation["success"]:
+            return json.dumps(validation)
+
+        cmd = [
+            self.tshark_path,
+            "-r",
+            pcap_file,
+            "-Y",
+            "kerberos",
+            "-T",
+            "fields",
+            "-e",
+            "frame.number",
+            "-e",
+            "ip.src",
+            "-e",
+            "ip.dst",
+            "-e",
+            "kerberos.msg_type",
+            "-e",
+            "kerberos.CNameString",
+            "-e",
+            "kerberos.realm",
+            "-e",
+            "kerberos.SNameString",
+            "-e",
+            "kerberos.cipher",
+            "-E",
+            "header=y",
+            "-E",
+            "separator=\t",
+            "-c",
+            str(limit),
+        ]
+        return await self._run_command(cmd)
+
+    async def extract_geoip(self, pcap_file: str, limit: int = 100) -> str:
+        """Extract GeoIP information for IP addresses."""
+        validation = self._validate_file(pcap_file)
+        if not validation["success"]:
+            return json.dumps(validation)
+
+        cmd = [
+            self.tshark_path,
+            "-r",
+            pcap_file,
+            "-o",
+            "ip.use_geoip:TRUE",
+            "-T",
+            "fields",
+            "-e",
+            "ip.src",
+            "-e",
+            "ip.geoip.src_country",
+            "-e",
+            "ip.geoip.src_city",
+            "-e",
+            "ip.geoip.src_asnum",
+            "-e",
+            "ip.dst",
+            "-e",
+            "ip.geoip.dst_country",
+            "-e",
+            "ip.geoip.dst_city",
+            "-e",
+            "ip.geoip.dst_asnum",
+            "-E",
+            "header=y",
+            "-E",
+            "separator=\t",
+            "-c",
+            str(limit),
+        ]
+        return await self._run_command(cmd)

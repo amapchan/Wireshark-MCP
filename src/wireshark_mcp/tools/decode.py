@@ -5,6 +5,7 @@ import gzip
 import html
 import quopri
 import string
+import struct
 import urllib.parse
 import zlib
 
@@ -92,7 +93,7 @@ def register_decode_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     def wireshark_decode_payload(data: str, encoding: str = "auto") -> str:
-        """[Utils] Decode encodings. encoding: 'base64'|'hex'|'url'|'rot13'|'gzip'|'deflate'|'html'|'unicode'|'quopri'|'ascii85'|'auto' (tries all, ranks by readability)."""
+        """[Utils] Decode encodings. encoding: base64|hex|url|rot13|gzip|deflate|html|unicode|quopri|ascii85|auto."""
         encodings = ["base64", "hex", "url", "rot13", "html", "unicode", "quopri", "ascii85"]
         # Exclude gzip/deflate from simple auto list, handled in chaining
 
@@ -175,3 +176,144 @@ def register_decode_tools(mcp: FastMCP) -> None:
                 return success_response(res_bytes.decode("utf-8"))
             except UnicodeDecodeError:
                 return success_response(f"[Binary Data] Hex: {binascii.hexlify(res_bytes).decode('ascii')}")
+
+    @mcp.tool()
+    def wireshark_xor_bruteforce(
+        data: str,
+        key: str = "",
+        key_range: int = 256,
+        encoding: str = "hex",
+    ) -> str:
+        """[Utils] XOR brute-force. Single-byte or multi-byte key. encoding: hex|base64."""
+        try:
+            if encoding == "hex":
+                clean = data.replace(" ", "").replace(":", "").replace("0x", "").replace("\n", "")
+                raw = binascii.unhexlify(clean)
+            elif encoding == "base64":
+                missing = len(data) % 4
+                if missing:
+                    data += "=" * (4 - missing)
+                raw = base64.b64decode(data, validate=True)
+            else:
+                return error_response(f"Unsupported encoding: {encoding}. Use 'hex' or 'base64'.")
+        except Exception as e:
+            return error_response(f"Failed to decode input: {e}")
+
+        if not raw:
+            return error_response("Empty input data")
+
+        if key:
+            key_bytes = key.encode("utf-8")
+            result = bytes(b ^ key_bytes[i % len(key_bytes)] for i, b in enumerate(raw))
+            score = _calculate_score(result)
+            try:
+                text = result.decode("utf-8", errors="replace")
+            except Exception:
+                text = binascii.hexlify(result[:100]).decode("ascii")
+            return success_response(
+                {
+                    "key": key,
+                    "key_hex": binascii.hexlify(key_bytes).decode("ascii"),
+                    "result": text[:500],
+                    "score": round(score, 3),
+                }
+            )
+
+        candidates: list[dict[str, object]] = []
+        limit = min(key_range, 256)
+        for k in range(limit):
+            result = bytes(b ^ k for b in raw)
+            score = _calculate_score(result)
+            if score > 0.6:
+                try:
+                    text = result.decode("utf-8", errors="replace")
+                except Exception:
+                    text = binascii.hexlify(result[:100]).decode("ascii")
+                candidates.append(
+                    {
+                        "key_byte": f"0x{k:02x}",
+                        "key_decimal": k,
+                        "result": text[:200],
+                        "score": round(score, 3),
+                    }
+                )
+
+        candidates.sort(key=lambda x: float(str(x["score"])), reverse=True)
+        if not candidates:
+            return success_response("No readable results found (all scores below 0.6 threshold).")
+        return success_response({"top_candidates": candidates[:5]})
+
+    @mcp.tool()
+    def wireshark_struct_unpack(
+        data: str,
+        format_str: str,
+        encoding: str = "hex",
+    ) -> str:
+        """[Utils] Struct unpack binary data. encoding: hex|base64. format_str: '>IHH', '<Q4s'."""
+        try:
+            if encoding == "hex":
+                clean = data.replace(" ", "").replace(":", "").replace("0x", "").replace("\n", "")
+                raw = binascii.unhexlify(clean)
+            elif encoding == "base64":
+                missing = len(data) % 4
+                if missing:
+                    data += "=" * (4 - missing)
+                raw = base64.b64decode(data, validate=True)
+            else:
+                return error_response(f"Unsupported encoding: {encoding}. Use 'hex' or 'base64'.")
+        except Exception as e:
+            return error_response(f"Failed to decode input: {e}")
+
+        try:
+            expected_size = struct.calcsize(format_str)
+        except struct.error as e:
+            return error_response(f"Invalid format string '{format_str}': {e}")
+
+        if len(raw) < expected_size:
+            return error_response(f"Data too short: got {len(raw)} bytes, format '{format_str}' needs {expected_size}")
+
+        try:
+            values = struct.unpack(format_str, raw[:expected_size])
+        except struct.error as e:
+            return error_response(f"Unpack failed: {e}")
+
+        fields: list[dict[str, str]] = []
+        for i, val in enumerate(values):
+            if isinstance(val, bytes):
+                fields.append(
+                    {
+                        "index": str(i),
+                        "value": val.hex(),
+                        "repr": repr(val),
+                        "type": "bytes",
+                    }
+                )
+            elif isinstance(val, int):
+                fields.append(
+                    {
+                        "index": str(i),
+                        "value": str(val),
+                        "hex": f"0x{val:x}" if val >= 0 else str(val),
+                        "type": "int",
+                    }
+                )
+            elif isinstance(val, float):
+                fields.append(
+                    {
+                        "index": str(i),
+                        "value": str(val),
+                        "type": "float",
+                    }
+                )
+            else:
+                fields.append({"index": str(i), "value": str(val), "type": type(val).__name__})
+
+        remaining = len(raw) - expected_size
+        return success_response(
+            {
+                "format": format_str,
+                "bytes_consumed": expected_size,
+                "bytes_remaining": remaining,
+                "fields": fields,
+            }
+        )

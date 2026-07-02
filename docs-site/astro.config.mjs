@@ -11,7 +11,7 @@ export default defineConfig({
       description:
         'Documentation for Wireshark MCP, a Model Context Protocol server for evidence-backed packet analysis.',
       logo: {
-        src: './src/assets/logo.png',
+        src: '/logo.png',
         alt: 'Wireshark MCP',
       },
       favicon: '/logo.png',

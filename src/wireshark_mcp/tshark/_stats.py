@@ -91,3 +91,54 @@ class StatsMixin(_ClientProtocol):
             return json.dumps(validation)
 
         return await self._run_command([self.tshark_path, "-r", pcap_file, "-q", "-z", "expert"])
+
+    async def get_flow_graph(self, pcap_file: str, flow_type: str = "any") -> str:
+        """Flow/Sequence graph (-z flow,type,network)."""
+        validation = self._validate_file(pcap_file)
+        if not validation["success"]:
+            return json.dumps(validation)
+
+        valid_types = {"any", "tcp", "icmp", "icmpv6"}
+        if flow_type not in valid_types:
+            return json.dumps(
+                {"success": False, "error": f"Invalid flow type: {flow_type}. Valid: {', '.join(sorted(valid_types))}"}
+            )
+
+        return await self._run_command([self.tshark_path, "-r", pcap_file, "-q", "-z", f"flow,{flow_type},network"])
+
+    async def get_http_stats(self, pcap_file: str) -> str:
+        """HTTP statistics tree (-z http,tree)."""
+        validation = self._validate_file(pcap_file)
+        if not validation["success"]:
+            return json.dumps(validation)
+
+        return await self._run_command([self.tshark_path, "-r", pcap_file, "-q", "-z", "http,tree"])
+
+    async def get_io_stat_filtered(self, pcap_file: str, interval: int = 1, filters: list[str] | None = None) -> str:
+        """Multi-filter I/O statistics (-z io,stat,interval,filter1,filter2,...)."""
+        validation = self._validate_file(pcap_file)
+        if not validation["success"]:
+            return json.dumps(validation)
+
+        stat_arg = f"io,stat,{interval}"
+        if filters:
+            quoted = ",".join(f'"{f}"' for f in filters)
+            stat_arg = f"io,stat,{interval},{quoted}"
+
+        return await self._run_command([self.tshark_path, "-r", pcap_file, "-q", "-z", stat_arg])
+
+    async def get_rtp_streams(self, pcap_file: str) -> str:
+        """RTP stream statistics (-z rtp,streams)."""
+        validation = self._validate_file(pcap_file)
+        if not validation["success"]:
+            return json.dumps(validation)
+
+        return await self._run_command([self.tshark_path, "-r", pcap_file, "-q", "-z", "rtp,streams"])
+
+    async def get_smb_stats(self, pcap_file: str) -> str:
+        """SMB service response time (-z smb,srt)."""
+        validation = self._validate_file(pcap_file)
+        if not validation["success"]:
+            return json.dumps(validation)
+
+        return await self._run_command([self.tshark_path, "-r", pcap_file, "-q", "-z", "smb,srt"])

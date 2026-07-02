@@ -89,7 +89,7 @@ def make_contextual_investigator_tools(client: TSharkClient) -> list[tuple[str, 
         initial_lead: str = "",
         playbook: str = "",
     ) -> str:
-        """[Investigation] Start an investigation session. Optionally provide an initial lead (suspect IP, alert) or a playbook name (malware_c2, lateral_movement, data_exfil, initial_access)."""
+        """[Investigation] Start a session. initial_lead: suspect IP/alert. playbook: malware_c2|lateral_movement|data_exfil|initial_access."""
         pb = None
         if playbook:
             pb = get_playbook(playbook)
