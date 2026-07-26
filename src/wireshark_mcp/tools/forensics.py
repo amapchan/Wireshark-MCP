@@ -99,22 +99,27 @@ def make_forensics_tools(client: TSharkClient) -> list[tuple[str, Any]]:
             "JPEG": "ffd8ff",
         }
 
-        async def _search(file_type: str, magic_hex: str) -> tuple[str, str]:
+        async def _search(file_type: str, magic_hex: str) -> tuple[str, int]:
             result = await client.search_packet_contents(pcap_file, magic_hex, search_type="hex", limit=50)
-            return file_type, result
+            wrapped = parse_tool_result(result)
+            if not wrapped["success"]:
+                return file_type, 0
+            data = wrapped.get("data", "")
+            if not isinstance(data, str):
+                return file_type, 0
+            # Packet-list output is a header row plus one row per match; count real matches only.
+            rows = [ln for ln in data.splitlines() if ln.strip()]
+            return file_type, max(0, len(rows) - 1)
 
         tasks = [_search(ft, mh) for ft, mh in MAGIC_BYTES.items()]
         results = await asyncio.gather(*tasks)
 
-        found_types: list[str] = []
-        for file_type, result in results:
-            if result and "No packets" not in result:
-                found_types.append(file_type)
+        found = [(ft, hits) for ft, hits in results if hits > 0]
 
-        if found_types:
+        if found:
             output_parts = [f"{WARN} Embedded files detected in traffic:"]
-            for ft in found_types:
-                output_parts.append(f"  {WARN} {ft}")
+            for ft, hits in found:
+                output_parts.append(f"  {WARN} {ft}: {hits} packet(s)")
             return success_response("\n".join(output_parts))
 
         return success_response(f"{OK} No embedded files detected via magic byte scan")
