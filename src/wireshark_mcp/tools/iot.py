@@ -10,8 +10,8 @@ from .formatting import INFO
 logger = logging.getLogger("wireshark_mcp")
 
 
-def make_contextual_iot_tools(client: TSharkClient) -> list[tuple[str, Any]]:
-    """Create contextual IoT protocol tools."""
+def make_iot_tools(client: TSharkClient) -> list[tuple[str, Any]]:
+    """Build IoT protocol tools."""
 
     async def wireshark_analyze_coap(pcap_file: str, limit: int = 100) -> str:
         """[IoT] Analyze CoAP sessions (methods, URIs, response codes, tokens, observe notifications)."""

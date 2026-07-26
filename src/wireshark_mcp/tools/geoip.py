@@ -78,8 +78,8 @@ def _is_private_ip(ip_str: str) -> bool:
         return False
 
 
-def make_contextual_geoip_tools(client: TSharkClient) -> list[tuple[str, Any]]:
-    """Create contextual GeoIP enrichment tools."""
+def make_geoip_tools(client: TSharkClient) -> list[tuple[str, Any]]:
+    """Build GeoIP enrichment tools."""
 
     async def wireshark_geoip_enrich(pcap_file: str, limit: int = 50) -> str:
         """[Enrichment] GeoIP lookup for unique IPs — country, city, ASN. Needs GeoLite2 DB."""

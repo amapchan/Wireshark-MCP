@@ -3,6 +3,8 @@
 import pytest
 from conftest import MockTSharkClient
 
+from wireshark_mcp.tools.envelope import parse_tool_result
+
 
 class TestGetPacketList:
     """Tests for get_packet_list command construction."""
@@ -65,12 +67,12 @@ class TestSearchPacketContents:
     @pytest.mark.asyncio
     async def test_string_search_bytes_scope(self, mock_client: MockTSharkClient) -> None:
         res = await mock_client.search_packet_contents("test.pcap", "password", scope="bytes")
-        assert 'frame contains "password"' in res
+        assert 'frame contains "password"' in parse_tool_result(res)["data"]
 
     @pytest.mark.asyncio
     async def test_regex_search_details_scope(self, mock_client: MockTSharkClient) -> None:
         res = await mock_client.search_packet_contents("test.pcap", "pass.*word", search_type="regex", scope="details")
-        assert 'frame matches "pass.*word"' in res
+        assert 'frame matches "pass.*word"' in parse_tool_result(res)["data"]
 
     @pytest.mark.asyncio
     async def test_filter_scope(self, mock_client: MockTSharkClient) -> None:

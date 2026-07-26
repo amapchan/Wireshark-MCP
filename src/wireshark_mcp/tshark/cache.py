@@ -27,6 +27,8 @@ class ResultCache:
         ttl_seconds: int = DEFAULT_TTL_SECONDS,
     ) -> None:
         self._cache: OrderedDict[str, tuple[str, float]] = OrderedDict()
+        # key -> resolved file path, so a single file can be invalidated on write.
+        self._key_paths: dict[str, str] = {}
         self._max_entries = max_entries
         self._max_bytes = max_bytes
         self._ttl = ttl_seconds
@@ -34,8 +36,8 @@ class ResultCache:
         self._hits = 0
         self._misses = 0
 
-    def _make_key(self, pcap_file: str, cmd: list[str]) -> str | None:
-        """Build a cache key from file identity and command args."""
+    def _make_key(self, pcap_file: str, cmd: list[str]) -> tuple[str, str] | None:
+        """Build a cache key and resolved path from file identity and command args."""
         try:
             path = Path(pcap_file).resolve()
             if not path.exists():
@@ -47,14 +49,15 @@ class ResultCache:
 
         cmd_str = "\x00".join(cmd)
         raw = f"{identity}\x01{cmd_str}"
-        return hashlib.sha256(raw.encode()).hexdigest()[:32]
+        return hashlib.sha256(raw.encode()).hexdigest()[:32], str(path)
 
     def get(self, pcap_file: str, cmd: list[str]) -> str | None:
         """Look up a cached result. Returns None on miss."""
-        key = self._make_key(pcap_file, cmd)
-        if key is None:
+        made = self._make_key(pcap_file, cmd)
+        if made is None:
             self._misses += 1
             return None
+        key, _ = made
 
         entry = self._cache.get(key)
         if entry is None:
@@ -73,9 +76,10 @@ class ResultCache:
 
     def put(self, pcap_file: str, cmd: list[str], result: str) -> None:
         """Store a result in the cache."""
-        key = self._make_key(pcap_file, cmd)
-        if key is None:
+        made = self._make_key(pcap_file, cmd)
+        if made is None:
             return
+        key, path = made
 
         result_size = len(result.encode("utf-8", errors="replace"))
 
@@ -94,27 +98,40 @@ class ResultCache:
             self._evict_oldest()
 
         self._cache[key] = (result, time.time())
+        self._key_paths[key] = path
         self._current_bytes += result_size
 
     def invalidate_file(self, pcap_file: str) -> int:
-        """Remove all cache entries (conservative: clears entire cache on write ops)."""
-        count = len(self._cache)
-        self.clear()
-        return count
+        """Remove every cache entry for a single file. Returns the count removed."""
+        try:
+            target = str(Path(pcap_file).resolve())
+        except OSError:
+            return 0
+
+        keys = [key for key, path in self._key_paths.items() if path == target]
+        for key in keys:
+            entry = self._cache.get(key)
+            if entry is not None:
+                self._evict(key, len(entry[0].encode("utf-8", errors="replace")))
+            self._key_paths.pop(key, None)
+        return len(keys)
 
     def clear(self) -> None:
         """Clear the entire cache."""
         self._cache.clear()
+        self._key_paths.clear()
         self._current_bytes = 0
 
     def _evict(self, key: str, size: int) -> None:
         if key in self._cache:
             del self._cache[key]
+            self._key_paths.pop(key, None)
             self._current_bytes -= size
 
     def _evict_oldest(self) -> None:
         if self._cache:
             key, (result, _) = self._cache.popitem(last=False)
+            self._key_paths.pop(key, None)
             self._current_bytes -= len(result.encode("utf-8", errors="replace"))
 
     @property

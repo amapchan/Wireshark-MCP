@@ -56,10 +56,10 @@ class TestConcurrentQuickAnalysis:
 class TestConcurrentTcpHealth:
     @pytest.mark.asyncio
     async def test_tcp_health_concurrent_checks(self) -> None:
-        from wireshark_mcp.tools.protocol import make_contextual_protocol_tools
+        from wireshark_mcp.tools.protocol import make_protocol_tools
 
         client = SlowMockClient(delay=0.02)
-        tools = make_contextual_protocol_tools(client)
+        tools = make_protocol_tools(client)
         tcp_health_fn = next(fn for name, fn in tools if name == "wireshark_analyze_tcp_health")
 
         start = time.monotonic()

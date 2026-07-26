@@ -35,8 +35,8 @@ def _parse_tsv_rows(data: str) -> list[list[str]]:
     return rows
 
 
-def make_contextual_anomaly_tools(client: TSharkClient) -> list[tuple[str, Any]]:
-    """Create contextual anomaly detection tools."""
+def make_anomaly_tools(client: TSharkClient) -> list[tuple[str, Any]]:
+    """Build anomaly detection tools."""
 
     async def wireshark_detect_beaconing(pcap_file: str, min_connections: int = 10, max_jitter: float = 0.2) -> str:
         """[Anomaly] Detect periodic communication patterns (C2 beacons) by analyzing connection timing intervals and jitter."""

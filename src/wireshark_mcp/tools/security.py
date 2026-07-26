@@ -230,8 +230,8 @@ async def _get_threat_data() -> str:
     return await _download_threat_feed()
 
 
-def make_contextual_security_tools(client: TSharkClient) -> list[tuple[str, Any]]:
-    """Create contextual security tools for the stable contextual catalog."""
+def make_security_tools(client: TSharkClient) -> list[tuple[str, Any]]:
+    """Build security tools."""
 
     async def wireshark_check_threats(pcap_file: str) -> str:
         """[Security] Match captured URLs and hostnames against cached URLhaus threat intelligence."""

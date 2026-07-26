@@ -75,8 +75,8 @@ def _severity_icon(severity: str) -> str:
     return mapping.get(severity.lower(), INFO)
 
 
-def make_contextual_yara_tools(client: TSharkClient) -> list[tuple[str, Any]]:
-    """Create contextual YARA scanning tools."""
+def make_yara_tools(client: TSharkClient) -> list[tuple[str, Any]]:
+    """Build YARA scanning tools."""
 
     async def wireshark_yara_scan(
         pcap_file: str,

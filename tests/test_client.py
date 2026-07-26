@@ -161,6 +161,123 @@ class TestRunCommand:
         assert result["error"]["type"] != "SecurityError"
 
 
+class TestEnvelopeContract:
+    """The client must always return an envelope, so `data` is never re-parsed."""
+
+    def test_ok_wraps_data_as_string(self) -> None:
+        wrapped = json.loads(TSharkClient._ok("hello"))
+        assert wrapped == {"success": True, "data": "hello"}
+
+    def test_unwrap_success_returns_data(self) -> None:
+        ok, text = TSharkClient._unwrap(TSharkClient._ok("payload"))
+        assert ok is True
+        assert text == "payload"
+
+    def test_unwrap_error_propagates_envelope(self) -> None:
+        err = json.dumps({"success": False, "error": {"type": "X", "message": "boom"}})
+        ok, text = TSharkClient._unwrap(err)
+        assert ok is False
+        assert text == err
+
+    def test_unwrap_tolerates_bare_text(self) -> None:
+        ok, text = TSharkClient._unwrap("just raw text")
+        assert ok is True
+        assert text == "just raw text"
+
+    @pytest.mark.asyncio
+    async def test_packet_data_mimicking_error_is_not_misclassified(self, monkeypatch, tmp_path) -> None:
+        """Regression: field data that looks like {"success": false} must stay data."""
+        from wireshark_mcp.tools.envelope import parse_tool_result
+
+        pcap = tmp_path / "cap.pcap"
+        pcap.write_bytes(b"\x00" * 64)
+        evil = '{"success": false, "error": "this is packet DATA not an error"}'
+
+        class FakeProc:
+            returncode = 0
+
+            async def communicate(self):
+                return evil.encode(), b""
+
+            def kill(self) -> None:  # pragma: no cover
+                pass
+
+        async def fake_exec(*_args, **_kwargs):
+            return FakeProc()
+
+        monkeypatch.setattr("asyncio.create_subprocess_exec", fake_exec)
+
+        client = TSharkClient()
+        raw = await client._run_command([client.tshark_path, "-r", str(pcap), "-T", "fields"])
+        wrapped = parse_tool_result(raw)
+
+        assert wrapped["success"] is True
+        assert wrapped["data"] == evil
+
+
+class TestPagination:
+    """Tests for offset/limit windowing and cache/pagination independence."""
+
+    def test_paginate_windows_and_marks_truncation(self) -> None:
+        output = "\n".join(str(i) for i in range(10))
+        text, truncated = TSharkClient._paginate(output, limit_lines=3, offset_lines=0)
+        assert text.startswith("0\n1\n2")
+        assert truncated is True
+        assert "Next: offset=3" in text
+
+    def test_paginate_offset_slices_from_start(self) -> None:
+        output = "\n".join(str(i) for i in range(10))
+        text, truncated = TSharkClient._paginate(output, limit_lines=0, offset_lines=5)
+        assert text == "5\n6\n7\n8\n9"
+        assert truncated is False
+
+    def test_paginate_no_limit_returns_all(self) -> None:
+        output = "a\nb\nc"
+        text, truncated = TSharkClient._paginate(output, limit_lines=0, offset_lines=0)
+        assert text == "a\nb\nc"
+        assert truncated is False
+
+    def test_output_paths_detects_write_target(self) -> None:
+        assert TSharkClient._output_paths(["mergecap", "-w", "out.pcap", "a.pcap"]) == ["out.pcap"]
+        assert TSharkClient._output_paths(["tshark", "-r", "in.pcap"]) == []
+
+    @pytest.mark.asyncio
+    async def test_different_offsets_do_not_pollute_cache(self, monkeypatch, tmp_path) -> None:
+        """Regression: paginated reads must not overwrite each other in the cache."""
+        pcap = tmp_path / "cap.pcap"
+        pcap.write_bytes(b"\x00" * 64)
+        full = "\n".join(f"row{i}" for i in range(6))
+
+        client = TSharkClient()
+        calls = {"n": 0}
+
+        class FakeProc:
+            returncode = 0
+
+            async def communicate(self):
+                calls["n"] += 1
+                return full.encode(), b""
+
+            def kill(self) -> None:  # pragma: no cover - not reached
+                pass
+
+        async def fake_exec(*_args, **_kwargs):
+            return FakeProc()
+
+        monkeypatch.setattr("asyncio.create_subprocess_exec", fake_exec)
+
+        cmd = [client.tshark_path, "-r", str(pcap), "-T", "fields"]
+
+        _, first = client._unwrap(await client._run_command(cmd, limit_lines=2, offset_lines=0))
+        assert first.startswith("row0\nrow1")
+        assert "Next: offset=2" in first
+
+        # Second call: same command, different window — served from cache, correct slice.
+        _, second = client._unwrap(await client._run_command(cmd, limit_lines=0, offset_lines=4))
+        assert second == "row4\nrow5"
+        assert calls["n"] == 1  # subprocess ran only once; window applied post-cache
+
+
 class TestSuiteBehavior:
     @pytest.mark.asyncio
     async def test_list_interfaces_prefers_dumpcap_when_available(self, mock_client) -> None:

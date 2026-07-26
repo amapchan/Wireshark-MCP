@@ -177,8 +177,9 @@ class SuiteOpsMixin(_ClientProtocol):
         cmd = [editcap_path, "-r", input_file, output_file] + frame_ranges.strip().split()
         result = await self._run_command(cmd)
 
-        if os.path.exists(output_file):
-            return f"Extracted frames {frame_ranges} to {output_file}\n{result}"
+        ok, text = self._unwrap(result)
+        if ok and os.path.exists(output_file):
+            return self._ok(f"Extracted frames {frame_ranges} to {output_file}\n{text}")
         return result
 
     async def text2pcap_import(
@@ -226,6 +227,7 @@ class SuiteOpsMixin(_ClientProtocol):
         cmd = [self.tshark_path, "-r", input_file, "-Y", display_filter, "-w", output_file]
         result = await self._run_command(cmd)
 
-        if os.path.exists(output_file):
-            return f"Filtered packets saved to {output_file}\n{result}"
+        ok, text = self._unwrap(result)
+        if ok and os.path.exists(output_file):
+            return self._ok(f"Filtered packets saved to {output_file}\n{text}")
         return result

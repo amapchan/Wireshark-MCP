@@ -10,8 +10,8 @@ from .formatting import CRIT, INFO, OK, WARN
 logger = logging.getLogger("wireshark_mcp")
 
 
-def make_contextual_threat_tools(client: TSharkClient) -> list[tuple[str, Any]]:
-    """Create contextual threat tools for the stable contextual catalog."""
+def make_threat_tools(client: TSharkClient) -> list[tuple[str, Any]]:
+    """Build threat tools."""
 
     async def wireshark_detect_port_scan(pcap_file: str, threshold: int = 15) -> str:
         """[Security] Detect port scanning (SYN, FIN, NULL, Xmas scans). threshold: min unique dst ports to flag."""
