@@ -168,6 +168,13 @@ class TestEnvelopeContract:
         wrapped = json.loads(TSharkClient._ok("hello"))
         assert wrapped == {"success": True, "data": "hello"}
 
+    def test_stderr_kept_out_of_data(self) -> None:
+        # Diagnostic stderr must not corrupt structured data (e.g. -T json).
+        wrapped = json.loads(TSharkClient._ok('[{"frame":1}]', stderr="tshark: warning"))
+        assert wrapped["data"] == '[{"frame":1}]'
+        assert json.loads(wrapped["data"]) == [{"frame": 1}]  # data stays parseable
+        assert wrapped["stderr"] == "tshark: warning"
+
     def test_unwrap_success_returns_data(self) -> None:
         ok, text = TSharkClient._unwrap(TSharkClient._ok("payload"))
         assert ok is True

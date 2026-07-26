@@ -6,6 +6,7 @@ import json
 import logging
 import subprocess
 from pathlib import Path
+from typing import Any
 
 from ..toolchain import (
     WIRESHARK_TOOL_ENV_VARS,
@@ -69,14 +70,19 @@ class WiresharkSuiteClient(
             logger.info("Path sandbox enabled: %s", self._allowed_dirs)
 
     @staticmethod
-    def _ok(data: str) -> str:
+    def _ok(data: str, stderr: str = "") -> str:
         """Wrap successful command output in the canonical success envelope.
 
         Every client method returns this shape (or an error envelope), so the
         raw text lives in ``data`` and is never re-parsed by consumers — output
         that happens to look like JSON can no longer be mistaken for an error.
+        Diagnostic stderr is kept in a separate field so it never corrupts
+        structured (``-T json`` / ``-T fields``) output in ``data``.
         """
-        return json.dumps({"success": True, "data": data})
+        envelope: dict[str, Any] = {"success": True, "data": data}
+        if stderr:
+            envelope["stderr"] = stderr
+        return json.dumps(envelope)
 
     @staticmethod
     def _unwrap(result: str) -> tuple[bool, str]:
@@ -222,11 +228,10 @@ class WiresharkSuiteClient(
 
             final_output, truncated = self._paginate(output, limit_lines, offset_lines)
 
-            # Only surface stderr when the caller sees the complete output.
-            if error and not truncated:
-                final_output += f"\n[Stderr]: {error}"
-
-            return self._ok(final_output)
+            # Keep stderr out of `data` (would corrupt -T json/-T fields); surface
+            # it in a sibling field only when the caller sees the complete output.
+            stderr_note = error if (error and not truncated) else ""
+            return self._ok(final_output, stderr_note)
 
         except Exception as e:
             logger.exception("Command execution failed: %s", " ".join(cmd))

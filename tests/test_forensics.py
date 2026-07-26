@@ -1,7 +1,54 @@
 """Tests for forensics tools."""
 
+import json
+
 import pytest
 from conftest import MockTSharkClient
+
+from wireshark_mcp.tools.envelope import success_response
+from wireshark_mcp.tools.forensics import make_forensics_tools
+
+
+def _carve_tool(client: MockTSharkClient):
+    return dict(make_forensics_tools(client))["wireshark_carve_files"]
+
+
+class TestCarveFilesDetection:
+    """Regression: carve must count real matches, not report every type blindly."""
+
+    @pytest.mark.asyncio
+    async def test_zero_matches_reports_nothing(self, mock_client: MockTSharkClient) -> None:
+        async def header_only(*_a, **_k):
+            return success_response("frame.number\t_ws.col.Info\n")  # header row, no matches
+
+        mock_client.search_packet_contents = header_only  # type: ignore[method-assign]
+        out = json.loads(await _carve_tool(mock_client)("x.pcap"))
+        assert "No embedded files detected" in out["data"]
+        assert "detected in traffic" not in out["data"]
+
+    @pytest.mark.asyncio
+    async def test_only_types_with_matches_are_reported(self, mock_client: MockTSharkClient) -> None:
+        async def only_pe(pcap, pattern, search_type="string", limit=50, scope="bytes"):
+            if pattern == "4d5a":  # PE/EXE magic
+                return success_response("frame.number\t_ws.col.Info\n1\tGET\n2\tPOST\n")
+            return success_response("frame.number\t_ws.col.Info\n")
+
+        mock_client.search_packet_contents = only_pe  # type: ignore[method-assign]
+        out = json.loads(await _carve_tool(mock_client)("x.pcap"))
+        assert "PE/EXE: 2 packet(s)" in out["data"]
+        assert "ELF" not in out["data"]
+        assert "PDF" not in out["data"]
+
+    @pytest.mark.asyncio
+    async def test_search_error_is_not_a_false_positive(self, mock_client: MockTSharkClient) -> None:
+        from wireshark_mcp.tools.envelope import error_response
+
+        async def always_error(*_a, **_k):
+            return error_response("boom")
+
+        mock_client.search_packet_contents = always_error  # type: ignore[method-assign]
+        out = json.loads(await _carve_tool(mock_client)("x.pcap"))
+        assert "No embedded files detected" in out["data"]
 
 
 class TestFileCarving:
