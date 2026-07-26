@@ -78,19 +78,19 @@ Write findings to report.md.
 
 ## Tools
 
-40+ tools organized into categories:
+80+ tools, each backed by real `tshark` output — organized into categories:
 
 | Category | Highlights | Count |
 |----------|-----------|:-----:|
-| **Agentic Workflows** | `wireshark_security_audit`, `wireshark_quick_analysis`, `wireshark_open_file` | 4 |
-| **Packet Analysis** | Packet list, details, bytes, context, stream follow, search | 7 |
-| **Data Extraction** | HTTP requests, DNS queries, TLS handshakes, field extraction | 6 |
-| **Statistics** | Protocol hierarchy, endpoints, conversations, I/O graph, expert info | 6 |
-| **Security** | Threat intel, credential scan, port scan, DNS tunnel, DoS detection | 6 |
-| **Protocol Deep Dive** | TCP health, ARP spoofing, SMTP, DHCP | 5 |
-| **File Ops & Capture** | Live capture, merge, filter-save, file info | 5 |
-| **Suite Utilities** | editcap trim/split/dedup, text2pcap import | 5 |
-| **Decode & Visualize** | Payload decode, traffic plot, protocol tree | 3 |
+| **Entry & Workflow** | `wireshark_open_file`, `wireshark_quick_analysis`, `wireshark_security_audit` | 3 |
+| **Packet Analysis** | Packet list, details, bytes, context, stream follow, search | 8 |
+| **Data Extraction** | HTTP requests, DNS queries, TLS handshakes, credentials, fields | 11 |
+| **Statistics** | Protocol hierarchy, endpoints, conversations, I/O graph, HTTP/SMB/RTP stats, plots | 13 |
+| **Security & Threat** | Threat intel, credential scan, port scan, DNS tunnel, DoS, beaconing, exfil | 13 |
+| **Protocol Deep-Dive** | TCP health, QUIC, WebSocket, gRPC, MQTT, TLS/WPA decrypt, fingerprints | 11 |
+| **ICS / IoT / Wireless** | Modbus, S7comm, DNP3, CoAP, Zigbee, BLE, Wi-Fi, WireGuard | 8 |
+| **Forensics & Decode** | File carving, evidence chain, YARA scan, payload decode, GeoIP | 8 |
+| **File Ops, Capture & Suite** | Live capture, merge, filter-save, editcap trim/split/dedup, text2pcap | 11 |
 
 The server starts with only `tshark` required. Optional tools (`capinfos`, `mergecap`, `editcap`, `dumpcap`, `text2pcap`) are auto-detected and enable extra features when present.
 

@@ -33,13 +33,14 @@ class PacketsMixin(_ClientProtocol):
         result = await self._run_command(cmd)
 
         if offset > 0:
-            try:
-                packets = json.loads(result)
-                if isinstance(packets, list):
-                    packets = packets[offset:]
-                    result = json.dumps(packets)
-            except json.JSONDecodeError:
-                pass
+            ok, text = self._unwrap(result)
+            if ok:
+                try:
+                    packets = json.loads(text)
+                    if isinstance(packets, list):
+                        return self._ok(json.dumps(packets[offset:]))
+                except json.JSONDecodeError:
+                    pass
 
         return result
 

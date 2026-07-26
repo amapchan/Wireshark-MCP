@@ -1,9 +1,9 @@
-"""Stable contextual tool catalog with capture-aware recommendations.
+"""Analysis tool registration with protocol-aware recommendations.
 
-Manages two categories of tools:
-- **Core tools**: Always registered at startup (packet list, stats, capture, etc.)
-- **Contextual tools**: Also registered at startup, but highlighted by `wireshark_open_file`
-  based on detected protocols in the current capture.
+All analysis tools are registered once at startup — the tool surface is static.
+`wireshark_open_file` inspects a capture's protocol hierarchy and points the
+caller at the subset of already-registered tools most relevant to what the
+capture actually contains. It does not add or remove tools.
 """
 
 import logging
@@ -18,28 +18,24 @@ from .envelope import normalize_tool_result, parse_tool_result, success_response
 
 logger = logging.getLogger("wireshark_mcp")
 
-# Type alias: a function that creates contextual tool functions
-# Returns list of (tool_name, tool_function) pairs
-ContextualToolFactory = Callable[[TSharkClient], list[tuple[str, Any]]]
+# A factory maps a client to a list of (tool_name, tool_function) pairs.
+ToolFactory = Callable[[TSharkClient], list[tuple[str, Any]]]
 
 
-# ── Protocol → Tool mapping ─────────────────────────────────────────────────
-
-# Each entry: protocol_keyword → list of tool names that should be recommended
+# ── Protocol → recommended tools ────────────────────────────────────────────
+# Maps a protocol seen in the capture to the analysis tools worth running for it.
+# Used only to build recommendation text; every listed tool is always registered.
 PROTOCOL_TOOL_MAP: dict[str, list[str]] = {
-    # HTTP-related
     "http": [
         "wireshark_extract_http_requests",
         "wireshark_export_objects",
         "wireshark_extract_credentials",
         "wireshark_yara_scan",
     ],
-    # DNS-related
     "dns": [
         "wireshark_extract_dns_queries",
         "wireshark_detect_dns_tunnel",
     ],
-    # TLS/SSL-related
     "tls": [
         "wireshark_extract_tls_handshakes",
         "wireshark_verify_ssl_decryption",
@@ -49,29 +45,24 @@ PROTOCOL_TOOL_MAP: dict[str, list[str]] = {
         "wireshark_extract_tls_handshakes",
         "wireshark_verify_ssl_decryption",
     ],
-    # ARP-related
     "arp": [
         "wireshark_detect_arp_spoofing",
     ],
-    # SMTP-related
     "smtp": [
         "wireshark_extract_smtp_emails",
     ],
-    # DHCP-related
     "dhcp": [
         "wireshark_extract_dhcp_info",
     ],
     "bootp": [
         "wireshark_extract_dhcp_info",
     ],
-    # FTP/Telnet (credential extraction)
     "ftp": [
         "wireshark_extract_credentials",
     ],
     "telnet": [
         "wireshark_extract_credentials",
     ],
-    # IP traffic (security analysis — broad match)
     "ip": [
         "wireshark_check_threats",
         "wireshark_detect_port_scan",
@@ -79,33 +70,27 @@ PROTOCOL_TOOL_MAP: dict[str, list[str]] = {
         "wireshark_analyze_suspicious_traffic",
         "wireshark_geoip_enrich",
     ],
-    # TCP-specific deep analysis
     "tcp": [
         "wireshark_analyze_tcp_health",
     ],
-    # QUIC/HTTP3
     "quic": [
         "wireshark_analyze_quic",
     ],
     "http3": [
         "wireshark_analyze_quic",
     ],
-    # WebSocket
     "websocket": [
         "wireshark_analyze_websocket",
     ],
-    # MQTT (IoT)
     "mqtt": [
         "wireshark_analyze_mqtt",
     ],
-    # gRPC
     "grpc": [
         "wireshark_analyze_grpc",
     ],
     "http2": [
         "wireshark_analyze_grpc",
     ],
-    # ICS/SCADA
     "modbus": [
         "wireshark_analyze_modbus",
     ],
@@ -118,7 +103,6 @@ PROTOCOL_TOOL_MAP: dict[str, list[str]] = {
     "dnp3": [
         "wireshark_analyze_dnp3",
     ],
-    # IoT
     "coap": [
         "wireshark_analyze_coap",
     ],
@@ -128,14 +112,12 @@ PROTOCOL_TOOL_MAP: dict[str, list[str]] = {
     "zbee_aps": [
         "wireshark_analyze_zigbee",
     ],
-    # Wireless
     "btle": [
         "wireshark_analyze_ble",
     ],
     "wlan": [
         "wireshark_analyze_wifi",
     ],
-    # Tunneling
     "wg": [
         "wireshark_analyze_wireguard",
     ],
@@ -146,146 +128,94 @@ PROTOCOL_TOOL_MAP: dict[str, list[str]] = {
 
 
 class ToolRegistry:
-    """Manages the contextual tool catalog and capture-aware recommendations."""
+    """Registers the analysis tool catalog and maps protocols to recommendations."""
 
     def __init__(self, mcp: FastMCP, client: TSharkClient) -> None:
         self._mcp = mcp
         self._client = client
-        # All contextual tool functions, keyed by tool name
-        self._contextual_catalog: dict[str, Any] = {}
-        # Currently registered contextual tool names
-        self._active_contextual: set[str] = set()
+        # tool_name -> tool function, for docstring lookup and recommendation validation
+        self._catalog: dict[str, Any] = {}
 
-    def build_catalog(self) -> None:
-        """Build the catalog of all available contextual tools.
+    def register(self) -> list[str]:
+        """Register every analysis tool on the MCP server. Returns registered names."""
+        from .anomaly import make_anomaly_tools
+        from .extract import make_extract_tools
+        from .forensics import make_forensics_tools
+        from .geoip import make_geoip_tools
+        from .ics import make_ics_tools
+        from .iot import make_iot_tools
+        from .protocol import make_protocol_tools
+        from .security import make_security_tools
+        from .threat import make_threat_tools
+        from .yara_scan import make_yara_tools
 
-        This collects tool functions from all contextual modules without
-        registering them on the MCP server yet.
-        """
-        from .anomaly import make_contextual_anomaly_tools
-        from .extract import make_contextual_extract_tools
-        from .forensics import make_contextual_forensics_tools
-        from .geoip import make_contextual_geoip_tools
-        from .ics import make_contextual_ics_tools
-        from .investigator import make_contextual_investigator_tools
-        from .iot import make_contextual_iot_tools
-        from .nl_query import make_contextual_nl_tools
-        from .playbooks import make_contextual_playbook_tools
-        from .protocol import make_contextual_protocol_tools
-        from .reporter import make_contextual_reporter_tools
-        from .security import make_contextual_security_tools
-        from .threat import make_contextual_threat_tools
-        from .yara_scan import make_contextual_yara_tools
+        factories: list[ToolFactory] = [
+            make_extract_tools,
+            make_protocol_tools,
+            make_security_tools,
+            make_threat_tools,
+            make_ics_tools,
+            make_iot_tools,
+            make_forensics_tools,
+            make_anomaly_tools,
+            make_geoip_tools,
+            make_yara_tools,
+        ]
 
-        for factory in [
-            make_contextual_extract_tools,
-            make_contextual_protocol_tools,
-            make_contextual_security_tools,
-            make_contextual_threat_tools,
-            make_contextual_ics_tools,
-            make_contextual_iot_tools,
-            make_contextual_forensics_tools,
-            make_contextual_anomaly_tools,
-            make_contextual_nl_tools,
-            make_contextual_investigator_tools,
-            make_contextual_playbook_tools,
-            make_contextual_reporter_tools,
-            make_contextual_geoip_tools,
-            make_contextual_yara_tools,
-        ]:
+        for factory in factories:
             for name, fn in factory(self._client):
-                self._contextual_catalog[name] = fn
+                self._catalog[name] = fn
 
-        logger.info(
-            "Contextual tool catalog built: %d tools available",
-            len(self._contextual_catalog),
-        )
-
-    def register_and_catalog(self) -> list[str]:
-        """Build the catalog and register all contextual tools in one step."""
-        self.build_catalog()
-        return self.register_all_contextual_tools()
-
-    def register_all_contextual_tools(self) -> list[str]:
-        """Register every contextual tool once at startup.
-
-        Returns:
-            List of newly registered contextual tool names.
-        """
-        newly_registered: list[str] = []
-        for tool_name in sorted(self._contextual_catalog):
-            if tool_name in self._active_contextual:
-                continue
-
-            fn = self._contextual_catalog[tool_name]
+        registered: list[str] = []
+        for name in sorted(self._catalog):
             try:
-                self._mcp.add_tool(fn, name=tool_name)
-                self._active_contextual.add(tool_name)
-                newly_registered.append(tool_name)
-                logger.debug("Registered contextual tool: %s", tool_name)
+                self._mcp.add_tool(self._catalog[name], name=name)
+                registered.append(name)
             except Exception as exc:
-                logger.warning("Failed to register contextual tool %s: %s", tool_name, exc)
+                logger.warning("Failed to register tool %s: %s", name, exc)
 
-        logger.info("Registered %d contextual tools at startup", len(newly_registered))
-        return newly_registered
+        self._warn_on_unknown_recommendations()
+        logger.info("Registered %d analysis tools", len(registered))
+        return registered
+
+    def _warn_on_unknown_recommendations(self) -> None:
+        """Flag any PROTOCOL_TOOL_MAP entry that names a tool we never registered."""
+        referenced = {tool for tools in PROTOCOL_TOOL_MAP.values() for tool in tools}
+        for tool_name in sorted(referenced - self._catalog.keys()):
+            logger.warning("PROTOCOL_TOOL_MAP references unregistered tool: %s", tool_name)
 
     def recommended_tools_for_protocols(self, detected_protocols: set[str]) -> list[str]:
-        """Return the contextual tools most relevant to the detected protocols.
-
-        Args:
-            detected_protocols: Set of protocol names found in the current pcap.
-
-        Returns:
-            Sorted list of recommended contextual tool names.
-        """
-        tools_to_recommend: set[str] = set()
+        """Return registered tools relevant to the detected protocols."""
+        recommended: set[str] = set()
         for protocol in detected_protocols:
-            protocol_lower = protocol.lower().strip()
-            if protocol_lower in PROTOCOL_TOOL_MAP:
-                tools_to_recommend.update(PROTOCOL_TOOL_MAP[protocol_lower])
+            for tool_name in PROTOCOL_TOOL_MAP.get(protocol.lower().strip(), []):
+                if tool_name in self._catalog:
+                    recommended.add(tool_name)
+        return sorted(recommended)
 
-        recommended = sorted(tool_name for tool_name in tools_to_recommend if tool_name in self._contextual_catalog)
-
-        missing_tools = sorted(
-            tool_name for tool_name in tools_to_recommend if tool_name not in self._contextual_catalog
-        )
-        for tool_name in missing_tools:
-            logger.warning("Tool %s is in PROTOCOL_TOOL_MAP but not in catalog", tool_name)
-
-        logger.info(
-            "Recommended %d contextual tools for protocols: %s",
-            len(recommended),
-            ", ".join(sorted(detected_protocols)),
-        )
-        return recommended
-
-    @property
-    def active_contextual_tools(self) -> set[str]:
-        """Return the set of currently registered contextual tool names."""
-        return self._active_contextual.copy()
+    def tool_doc(self, tool_name: str) -> str:
+        """Return the first docstring line for a registered tool, or empty string."""
+        fn = self._catalog.get(tool_name)
+        return (fn.__doc__ or "").strip().split("\n")[0] if fn else ""
 
     @property
     def catalog_size(self) -> int:
-        """Return the total number of contextual tools in the catalog."""
-        return len(self._contextual_catalog)
+        """Number of analysis tools in the catalog."""
+        return len(self._catalog)
 
 
 def parse_protocol_hierarchy(phs_output: str) -> set[str]:
-    """Parse tshark protocol hierarchy output to extract protocol names.
+    """Parse tshark `-z io,phs` output into a set of protocol names.
 
-    Handles the typical tshark -z io,phs output format like:
+    Handles the typical hierarchy format::
+
         eth  frames:100 bytes:12345
           ip  frames:90 bytes:11000
             tcp  frames:80 bytes:10000
               http  frames:30 bytes:5000
-              tls  frames:50 bytes:5000
-            udp  frames:10 bytes:1000
-              dns  frames:10 bytes:1000
-        arp  frames:10 bytes:1345
     """
     protocols: set[str] = set()
     for line in phs_output.splitlines():
-        # Match lines like "  tcp  frames:123 bytes:456" or "tcp  frames:123"
         match = re.match(r"^\s*(\w[\w.-]*)\s+frames:", line)
         if match:
             protocols.add(match.group(1).lower())
@@ -298,33 +228,25 @@ def register_open_file_tool(mcp: FastMCP, client: TSharkClient, registry: ToolRe
     @mcp.tool()
     async def wireshark_open_file(pcap_file: str) -> str:
         """[Entry Point] Open a pcap and get protocol-aware tool recommendations. Returns protocols and relevant tools."""
-        # Step 1: Get protocol hierarchy (required, tshark-backed)
         phs_raw = await client.get_protocol_stats(pcap_file)
         phs_result = parse_tool_result(normalize_tool_result(phs_raw))
         if not phs_result["success"]:
             return normalize_tool_result(phs_result)
 
-        # Step 2: Get file info (optional, capinfos-backed)
         file_info_raw = await client.get_file_info(pcap_file)
         file_info = parse_tool_result(normalize_tool_result(file_info_raw))
 
         detected_protocols: set[str] = set()
-        if phs_result["success"]:
-            phs_data = phs_result.get("data", "")
-            if isinstance(phs_data, str):
-                detected_protocols = parse_protocol_hierarchy(phs_data)
+        phs_data = phs_result.get("data", "")
+        if isinstance(phs_data, str):
+            detected_protocols = parse_protocol_hierarchy(phs_data)
 
-        # Step 3: Recommend contextual tools based on detected protocols
         recommended_tools = registry.recommended_tools_for_protocols(detected_protocols)
 
-        # Step 4: Build response
         output_parts = ["File Info:"]
         if file_info["success"]:
-            output_parts.append(
-                file_info.get("data", "N/A")
-                if isinstance(file_info.get("data"), str)
-                else str(file_info.get("data", "N/A"))
-            )
+            data = file_info.get("data", "N/A")
+            output_parts.append(data if isinstance(data, str) else str(data))
         else:
             output_parts.append("Detailed file metadata unavailable (capinfos not installed or file summary failed).")
 
@@ -335,9 +257,7 @@ def register_open_file_tool(mcp: FastMCP, client: TSharkClient, registry: ToolRe
         if recommended_tools:
             output_parts.append(f"\nRecommended Tools ({len(recommended_tools)}):")
             for tool_name in recommended_tools:
-                fn = registry._contextual_catalog.get(tool_name)
-                doc = (fn.__doc__ or "").strip().split("\n")[0] if fn else ""
-                output_parts.append(f"  {tool_name}: {doc}")
+                output_parts.append(f"  {tool_name}: {registry.tool_doc(tool_name)}")
         else:
             output_parts.append("\nNo protocol-specific recommendations. Core tools are available.")
 

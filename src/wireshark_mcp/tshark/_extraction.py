@@ -117,7 +117,7 @@ class ExtractionMixin(_ClientProtocol):
         if not proto_validation["success"]:
             return json.dumps(proto_validation)
 
-        output = await self._run_command(
+        raw = await self._run_command(
             [
                 self.tshark_path,
                 "-r",
@@ -130,12 +130,16 @@ class ExtractionMixin(_ClientProtocol):
             offset_lines=0,
         )
 
+        ok, output = self._unwrap(raw)
+        if not ok:
+            return raw
+
         lines = output.splitlines()
 
         if search_content:
             lines = [line for line in lines if search_content in line]
             if not lines:
-                return f"No occurrences of '{search_content}' found in stream {stream_index}."
+                return self._ok(f"No occurrences of '{search_content}' found in stream {stream_index}.")
 
         total_lines = len(lines)
 
@@ -153,7 +157,7 @@ class ExtractionMixin(_ClientProtocol):
             remaining = total_lines - (offset_lines + limit_lines)
             final_output += f"\n\n[Displaying {limit_lines} lines. {remaining} more lines available. Use offset={offset_lines + limit_lines} to see more.]"
 
-        return final_output
+        return self._ok(final_output)
 
     async def decrypt_ssl(self, pcap_file: str, keylog_file: str) -> str:
         """Decrypt SSL/TLS using a Keylog file."""

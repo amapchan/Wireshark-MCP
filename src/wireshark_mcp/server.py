@@ -8,7 +8,7 @@ from typing import Literal, cast
 
 from mcp.server.fastmcp import FastMCP
 
-from .__init__ import __version__
+from . import __version__
 from .prompts import register_prompts
 from .resources import register_resources
 from .tools.advanced import register_advanced_tools
@@ -49,7 +49,7 @@ def _configure_windows_event_loop() -> None:
 
 
 def _build_server(*, host: str, port: int, log_level: LogLevelName) -> FastMCP:
-    """Build and configure the MCP server with a stable contextual tool surface."""
+    """Build and configure the MCP server with a stable tool surface."""
     # Read allowed directories from environment
     allowed_dirs_env = os.environ.get("WIRESHARK_MCP_ALLOWED_DIRS", "")
     allowed_dirs = [d.strip() for d in allowed_dirs_env.split(",") if d.strip()] or None
@@ -70,10 +70,10 @@ def _build_server(*, host: str, port: int, log_level: LogLevelName) -> FastMCP:
     register_import_tools(mcp, client)
     register_advanced_tools(mcp, client)
 
-    # ── Contextual recommendations ─────────────────────────────────────
-    # Build and register the contextual tool catalog once for a stable tool surface
+    # ── Analysis tools + protocol-aware recommendations ────────────────
+    # Register the full analysis tool catalog once — the tool surface is static.
     registry = ToolRegistry(mcp, client)
-    registry.register_and_catalog()
+    registry.register()
 
     # Register the entry-point tool that recommends the most relevant tools
     register_open_file_tool(mcp, client, registry)

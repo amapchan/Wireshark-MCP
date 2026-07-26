@@ -68,6 +68,70 @@ class WiresharkSuiteClient(
             self._allowed_dirs = [Path(d).resolve() for d in allowed_dirs]
             logger.info("Path sandbox enabled: %s", self._allowed_dirs)
 
+    @staticmethod
+    def _ok(data: str) -> str:
+        """Wrap successful command output in the canonical success envelope.
+
+        Every client method returns this shape (or an error envelope), so the
+        raw text lives in ``data`` and is never re-parsed by consumers — output
+        that happens to look like JSON can no longer be mistaken for an error.
+        """
+        return json.dumps({"success": True, "data": data})
+
+    @staticmethod
+    def _unwrap(result: str) -> tuple[bool, str]:
+        """Extract (success, text) from a client envelope for internal reuse.
+
+        On a success envelope, returns the ``data`` text. On an error envelope,
+        returns ``(False, <original envelope>)`` so callers can propagate it
+        unchanged. Non-envelope strings are treated as raw success text.
+        """
+        try:
+            parsed = json.loads(result)
+        except (json.JSONDecodeError, ValueError):
+            return True, result
+        if isinstance(parsed, dict) and "success" in parsed:
+            if parsed.get("success") is True:
+                data = parsed.get("data", "")
+                return True, data if isinstance(data, str) else json.dumps(data)
+            return False, result
+        return True, result
+
+    @staticmethod
+    def _output_paths(cmd: list[str]) -> list[str]:
+        """Return files a command writes to via `-w`, so their cache can be dropped."""
+        paths: list[str] = []
+        for i, arg in enumerate(cmd):
+            if arg == "-w" and i + 1 < len(cmd):
+                paths.append(cmd[i + 1])
+        return paths
+
+    @staticmethod
+    def _paginate(output: str, limit_lines: int, offset_lines: int) -> tuple[str, bool]:
+        """Slice full command output to an offset/limit window.
+
+        Returns the windowed text and whether it was truncated. A truncation
+        footer is appended so callers can page forward. Applied *after* caching
+        so the cache always holds the complete output.
+        """
+        lines = output.splitlines()
+        total_lines = len(lines)
+
+        if offset_lines > 0:
+            lines = lines[offset_lines:]
+
+        truncated = False
+        if limit_lines > 0 and len(lines) > limit_lines:
+            lines = lines[:limit_lines]
+            truncated = True
+
+        final_output = "\n".join(lines)
+        if truncated:
+            final_output += (
+                f"\n\n[Showing {limit_lines}/{total_lines} lines. Next: offset={offset_lines + limit_lines}]"
+            )
+        return final_output, truncated
+
     async def _run_command(
         self,
         cmd: list[str],
@@ -82,11 +146,15 @@ class WiresharkSuiteClient(
             if r_idx + 1 < len(cmd):
                 pcap_file = cmd[r_idx + 1]
 
+        # The cache stores the full, unpaginated stdout keyed by the command only.
+        # Pagination is applied *after* retrieval so different offset/limit values
+        # over the same command never pollute one another.
         if pcap_file:
             cached = self._cache.get(pcap_file, cmd)
             if cached is not None:
                 logger.debug("Cache hit for: %s", " ".join(cmd[:4]))
-                return cached
+                text, _ = self._paginate(cached, limit_lines, offset_lines)
+                return self._ok(text)
 
         binary = self._get_binary_name(cmd[0]) if cmd else ""
         if binary not in self._ALLOWED_BINARIES:
@@ -144,31 +212,21 @@ class WiresharkSuiteClient(
                     }
                 )
 
-            lines = output.splitlines()
-            total_lines = len(lines)
+            # Invalidate any cached reads of a file this command just wrote to.
+            for out_path in self._output_paths(cmd):
+                self._cache.invalidate_file(out_path)
 
-            if offset_lines > 0:
-                lines = lines[offset_lines:]
+            # Cache the full, unpaginated stdout so any offset/limit can be served from it.
+            if pcap_file:
+                self._cache.put(pcap_file, cmd, output)
 
-            truncated = False
-            if limit_lines > 0 and len(lines) > limit_lines:
-                lines = lines[:limit_lines]
-                truncated = True
+            final_output, truncated = self._paginate(output, limit_lines, offset_lines)
 
-            final_output = "\n".join(lines)
-
-            if truncated:
-                final_output += (
-                    f"\n\n[Showing {limit_lines}/{total_lines} lines. Next: offset={offset_lines + limit_lines}]"
-                )
-
+            # Only surface stderr when the caller sees the complete output.
             if error and not truncated:
                 final_output += f"\n[Stderr]: {error}"
 
-            if pcap_file and not truncated:
-                self._cache.put(pcap_file, cmd, final_output)
-
-            return final_output
+            return self._ok(final_output)
 
         except Exception as e:
             logger.exception("Command execution failed: %s", " ".join(cmd))

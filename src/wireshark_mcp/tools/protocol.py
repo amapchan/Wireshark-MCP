@@ -10,8 +10,8 @@ from .formatting import CRIT, INFO, OK, WARN
 logger = logging.getLogger("wireshark_mcp")
 
 
-def make_contextual_protocol_tools(client: TSharkClient) -> list[tuple[str, Any]]:
-    """Create contextual protocol tools for the stable contextual catalog."""
+def make_protocol_tools(client: TSharkClient) -> list[tuple[str, Any]]:
+    """Build protocol tools."""
 
     async def wireshark_extract_tls_handshakes(pcap_file: str, limit: int = 50) -> str:
         """[TLS] Extract TLS/SSL handshake info (version, cipher, SNI, cert issuer) as TSV."""

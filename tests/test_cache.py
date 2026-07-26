@@ -96,6 +96,29 @@ class TestCacheInvalidation:
         assert cache.get(pcap_file, cmd) is None
 
 
+class TestPerFileInvalidation:
+    def test_invalidate_file_only_drops_that_file(self, pcap_file: str) -> None:
+        with tempfile.NamedTemporaryFile(suffix=".pcap", delete=False) as f:
+            f.write(b"\x00" * 100)
+            other = f.name
+
+        cache = ResultCache(max_entries=10, max_bytes=100000, ttl_seconds=60)
+        cache.put(pcap_file, ["tshark", "-r", pcap_file], "A")
+        cache.put(other, ["tshark", "-r", other], "B")
+
+        removed = cache.invalidate_file(pcap_file)
+
+        assert removed == 1
+        assert cache.get(pcap_file, ["tshark", "-r", pcap_file]) is None
+        assert cache.get(other, ["tshark", "-r", other]) == "B"
+
+    def test_invalidate_unknown_file_removes_nothing(self, pcap_file: str) -> None:
+        cache = ResultCache(max_entries=10, max_bytes=100000, ttl_seconds=60)
+        cache.put(pcap_file, ["cmd"], "data")
+        assert cache.invalidate_file("/nonexistent.pcap") == 0
+        assert cache.get(pcap_file, ["cmd"]) == "data"
+
+
 class TestCacheStats:
     def test_hit_miss_tracking(self, cache: ResultCache, pcap_file: str) -> None:
         cmd = ["tshark", "-r", pcap_file]

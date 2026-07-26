@@ -47,8 +47,8 @@ def _load_fingerprint_db() -> list[dict[str, str]]:
     return _FINGERPRINT_DB
 
 
-def make_contextual_forensics_tools(client: TSharkClient) -> list[tuple[str, Any]]:
-    """Create contextual forensics tools."""
+def make_forensics_tools(client: TSharkClient) -> list[tuple[str, Any]]:
+    """Build forensics tools."""
 
     async def wireshark_extract_fingerprints(pcap_file: str, limit: int = 100) -> str:
         """[Forensics] Extract JA3/JA3S TLS fingerprints and match against known malware database."""

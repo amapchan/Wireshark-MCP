@@ -120,8 +120,8 @@ def register_extract_tools(mcp: FastMCP, client: TSharkClient) -> None:
         )
 
 
-def make_contextual_extract_tools(client: TSharkClient) -> list[tuple[str, Any]]:
-    """Create contextual extract tools for the stable contextual catalog."""
+def make_extract_tools(client: TSharkClient) -> list[tuple[str, Any]]:
+    """Build extract tools."""
 
     async def wireshark_extract_http_requests(pcap_file: str, limit: int = 100) -> str:
         """[HTTP] Extract HTTP request details (method, URI, host, user-agent) as TSV."""

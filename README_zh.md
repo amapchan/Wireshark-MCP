@@ -78,19 +78,19 @@ wireshark-mcp install   # 自动配置所有检测到的 MCP 客户端
 
 ## 工具
 
-40+ 工具，按类别组织：
+80+ 工具，每个都由真实 `tshark` 输出支撑，按类别组织：
 
 | 类别 | 亮点 | 数量 |
 |------|------|:----:|
-| **智能工作流** | `wireshark_security_audit`、`wireshark_quick_analysis`、`wireshark_open_file` | 4 |
-| **数据包分析** | 数据包列表、详情、字节、上下文、流追踪、搜索 | 7 |
-| **数据提取** | HTTP 请求、DNS 查询、TLS 握手、字段提取 | 6 |
-| **统计** | 协议层次、端点、会话、I/O 图、专家信息 | 6 |
-| **安全分析** | 威胁情报、凭据扫描、端口扫描、DNS 隧道、DoS 检测 | 6 |
-| **协议深入** | TCP 健康、ARP 欺骗、SMTP、DHCP | 5 |
-| **文件操作与抓包** | 实时抓包、合并、过滤保存、文件信息 | 5 |
-| **套件工具** | editcap 裁剪/分割/去重、text2pcap 导入 | 5 |
-| **解码与可视化** | 载荷解码、流量图、协议树 | 3 |
+| **入口与工作流** | `wireshark_open_file`、`wireshark_quick_analysis`、`wireshark_security_audit` | 3 |
+| **数据包分析** | 数据包列表、详情、字节、上下文、流追踪、搜索 | 8 |
+| **数据提取** | HTTP 请求、DNS 查询、TLS 握手、凭据、字段提取 | 11 |
+| **统计** | 协议层次、端点、会话、I/O 图、HTTP/SMB/RTP 统计、绘图 | 13 |
+| **安全与威胁** | 威胁情报、凭据扫描、端口扫描、DNS 隧道、DoS、信标、外泄 | 13 |
+| **协议深入** | TCP 健康、QUIC、WebSocket、gRPC、MQTT、TLS/WPA 解密、指纹 | 11 |
+| **工控/物联网/无线** | Modbus、S7comm、DNP3、CoAP、Zigbee、BLE、Wi-Fi、WireGuard | 8 |
+| **取证与解码** | 文件雕刻、证据链、YARA 扫描、载荷解码、GeoIP | 8 |
+| **文件操作、抓包与套件** | 实时抓包、合并、过滤保存、editcap 裁剪/分割/去重、text2pcap | 11 |
 
 服务器仅需 `tshark` 即可启动。可选工具（`capinfos`、`mergecap`、`editcap`、`dumpcap`、`text2pcap`）自动检测，存在时启用额外功能。
 

@@ -51,7 +51,8 @@ class MockTSharkClient(TSharkClient):
         timeout: int = 30,
     ) -> str:
         self._last_cmd = cmd
-        return "CMD: " + " ".join(cmd)
+        # Mirror the real client's contract: always return a success envelope.
+        return self._ok("CMD: " + " ".join(cmd))
 
 
 @pytest.fixture

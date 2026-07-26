@@ -3,6 +3,8 @@
 import pytest
 from conftest import MockTSharkClient
 
+from wireshark_mcp.tools.envelope import parse_tool_result
+
 
 class TestDecodeAs:
     @pytest.mark.asyncio
@@ -94,8 +96,8 @@ class TestIoStatFiltered:
     async def test_with_filters(self, mock_client: MockTSharkClient) -> None:
         result = await mock_client.get_io_stat_filtered("/tmp/test.pcap", interval=1, filters=["tcp", "udp"])
         assert "io,stat,1" in result
-        assert '"tcp"' in result
-        assert '"udp"' in result
+        assert '"tcp"' in parse_tool_result(result)["data"]
+        assert '"udp"' in parse_tool_result(result)["data"]
 
     @pytest.mark.asyncio
     async def test_no_filters(self, mock_client: MockTSharkClient) -> None:

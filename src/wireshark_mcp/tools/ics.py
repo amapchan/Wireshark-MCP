@@ -10,8 +10,8 @@ from .formatting import INFO, WARN
 logger = logging.getLogger("wireshark_mcp")
 
 
-def make_contextual_ics_tools(client: TSharkClient) -> list[tuple[str, Any]]:
-    """Create contextual ICS/SCADA protocol tools for the stable contextual catalog."""
+def make_ics_tools(client: TSharkClient) -> list[tuple[str, Any]]:
+    """Build ICS/SCADA protocol tools."""
 
     async def wireshark_analyze_modbus(pcap_file: str, limit: int = 100) -> str:
         """[ICS] Analyze Modbus TCP traffic (function codes, unit IDs, transactions, write operations)."""
