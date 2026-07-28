@@ -7,7 +7,7 @@ import time
 import pytest
 from conftest import MockTSharkClient
 
-from wireshark_mcp.tools.agents import _run_quick_analysis, _run_security_audit
+from wireshark_mcp.tools.agents import _run_quick_analysis
 
 
 class SlowMockClient(MockTSharkClient):
@@ -22,22 +22,6 @@ class SlowMockClient(MockTSharkClient):
         self._call_count += 1
         await asyncio.sleep(self._delay)
         return "CMD: " + " ".join(cmd)
-
-
-class TestConcurrentSecurityAudit:
-    @pytest.mark.asyncio
-    async def test_audit_completes_successfully(self) -> None:
-        client = SlowMockClient(delay=0.01)
-        result = await _run_security_audit(client, "test.pcap")
-        data = json.loads(result)
-        assert data["success"]
-        assert "## Security Audit" in data["data"]
-
-    @pytest.mark.asyncio
-    async def test_audit_makes_multiple_calls(self) -> None:
-        client = SlowMockClient(delay=0.01)
-        await _run_security_audit(client, "test.pcap")
-        assert client._call_count > 5
 
 
 class TestConcurrentQuickAnalysis:

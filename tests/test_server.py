@@ -236,7 +236,7 @@ def test_main_starts_sse_server_with_explicit_host_port(monkeypatch):
         ]
     )
 
-    assert build_calls == [{"host": "0.0.0.0", "port": 9090, "log_level": "INFO"}]
+    assert build_calls == [{"host": "0.0.0.0", "port": 9090, "log_level": "INFO", "profile": "full"}]
     assert run_calls == [{"transport": "sse", "mount_path": "/ws"}]
 
 
@@ -258,5 +258,5 @@ def test_main_defaults_to_serve_for_top_level_transport_flags(monkeypatch):
 
     server.main(["--transport", "streamable-http", "--host", "0.0.0.0", "--port", "9000"])
 
-    assert build_calls == [{"host": "0.0.0.0", "port": 9000, "log_level": "WARNING"}]
+    assert build_calls == [{"host": "0.0.0.0", "port": 9000, "log_level": "WARNING", "profile": "full"}]
     assert run_calls == [{"transport": "streamable-http"}]

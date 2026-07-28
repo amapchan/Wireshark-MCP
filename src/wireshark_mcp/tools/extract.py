@@ -3,7 +3,7 @@ from typing import Any, Literal
 from mcp.server.fastmcp import FastMCP
 
 from ..tshark.client import TSharkClient
-from .envelope import error_response, normalize_tool_result, parse_tool_result, success_response
+from .envelope import normalize_tool_result
 
 
 def register_extract_tools(mcp: FastMCP, client: TSharkClient) -> None:
@@ -54,38 +54,6 @@ def register_extract_tools(mcp: FastMCP, client: TSharkClient) -> None:
         return normalize_tool_result(
             await client.extract_fields(pcap_file, field_list, display_filter, limit=limit, offset=offset)
         )
-
-    @mcp.tool()
-    async def wireshark_list_ips(pcap_file: str, type: Literal["src", "dst", "both"] = "both") -> str:
-        """[Convenience] List unique IP addresses."""
-        fields = []
-        if type in ["src", "both"]:
-            fields.append("ip.src")
-        if type in ["dst", "both"]:
-            fields.append("ip.dst")
-
-        result = await client.extract_fields(pcap_file, fields, limit=10000)
-        wrapped = parse_tool_result(result)
-
-        if not wrapped["success"]:
-            return normalize_tool_result(wrapped)
-
-        data = wrapped.get("data")
-        if not isinstance(data, str):
-            return error_response(
-                "Unexpected data format from IP extraction",
-                error_type="DependencyError",
-                details={"expected": "string", "received": data.__class__.__name__},
-            )
-
-        unique_ips = set()
-        for line in data.splitlines()[1:]:
-            for ip in line.split("\t"):
-                ip = ip.strip().strip('"')
-                if ip and ip != "":
-                    unique_ips.add(ip)
-
-        return success_response("\n".join(sorted(unique_ips)))
 
     @mcp.tool()
     async def wireshark_search_packets(

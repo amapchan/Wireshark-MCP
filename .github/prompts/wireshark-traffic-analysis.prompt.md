@@ -3,7 +3,7 @@ Use the `wireshark-traffic-analysis` project skill in this repository to investi
 Inputs:
 
 - Capture path: `${input:capture_path:Path to the pcap or pcapng file}`
-- Goal: `${input:goal:triage | security | incident-response | troubleshoot | ctf}`
+- Goal: `${input:goal:triage | security | incident-response | troubleshoot}`
 - Optional scope: `${input:scope:Suspicious host, protocol, time window, domain, stream, or symptom}`
 
 Requirements:

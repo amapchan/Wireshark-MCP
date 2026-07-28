@@ -18,10 +18,6 @@ class StatsMixin(_ClientProtocol):
 
         return await self._run_command([self.tshark_path, "-r", pcap_file, "-q", "-z", "io,phs"])
 
-    async def get_protocol_stats_data(self, pcap_file: str) -> str:
-        """Protocol Hierarchy raw output for parsing."""
-        return await self.get_protocol_stats(pcap_file)
-
     async def get_endpoints(self, pcap_file: str, type: str = "ip") -> str:
         """Endpoints (-z endpoints,type)."""
         validation = self._validate_file(pcap_file)
@@ -62,10 +58,6 @@ class StatsMixin(_ClientProtocol):
                 f"io,stat,{interval}",
             ]
         )
-
-    async def get_io_graph_data(self, pcap_file: str, interval: int = 1) -> str:
-        """Raw I/O Graph data for visualization."""
-        return await self.get_io_graph(pcap_file, interval)
 
     async def get_service_response_time(self, pcap_file: str, protocol: str = "http") -> str:
         """Service Response Time (-z proto,tree)."""

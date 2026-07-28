@@ -1,20 +1,18 @@
-"""ICS/SCADA protocol analysis tools for Wireshark MCP."""
+"""ICS/SCADA protocol extractors for `wireshark_analyze_protocol`."""
 
 import logging
-from typing import Any
 
 from ..tshark.client import TSharkClient
-from .envelope import normalize_tool_result, parse_tool_result, success_response
+from .envelope import ProtocolHandler, normalize_tool_result, parse_tool_result, success_response
 from .formatting import INFO, WARN
 
 logger = logging.getLogger("wireshark_mcp")
 
 
-def make_ics_tools(client: TSharkClient) -> list[tuple[str, Any]]:
-    """Build ICS/SCADA protocol tools."""
+def make_ics_handlers(client: TSharkClient) -> dict[str, ProtocolHandler]:
+    """Build ICS/SCADA protocol extractors."""
 
-    async def wireshark_analyze_modbus(pcap_file: str, limit: int = 100) -> str:
-        """[ICS] Analyze Modbus TCP traffic (function codes, unit IDs, transactions, write operations)."""
+    async def _modbus(pcap_file: str, limit: int) -> str:
         fields = [
             "ip.src",
             "ip.dst",
@@ -97,14 +95,13 @@ def make_ics_tools(client: TSharkClient) -> list[tuple[str, Any]]:
 
         return success_response("\n".join(output_parts))
 
-    async def wireshark_analyze_s7comm(pcap_file: str, limit: int = 100) -> str:
-        """[ICS] Analyze Siemens S7comm sessions (function codes, data areas, DB access, PLC operations)."""
+    async def _s7comm(pcap_file: str, limit: int) -> str:
         fields = [
             "ip.src",
             "ip.dst",
             "s7comm.param.func",
             "s7comm.param.item.area",
-            "s7comm.param.item.dbnum",
+            "s7comm.param.item.db",
             "s7comm.resp.data",
         ]
         result = await client.extract_fields(
@@ -159,8 +156,7 @@ def make_ics_tools(client: TSharkClient) -> list[tuple[str, Any]]:
 
         return success_response("\n".join(output_parts))
 
-    async def wireshark_analyze_dnp3(pcap_file: str, limit: int = 100) -> str:
-        """[ICS] Analyze DNP3 SCADA sessions (function codes, objects, internal indications)."""
+    async def _dnp3(pcap_file: str, limit: int) -> str:
         fields = [
             "ip.src",
             "ip.dst",
@@ -225,8 +221,8 @@ def make_ics_tools(client: TSharkClient) -> list[tuple[str, Any]]:
 
         return success_response("\n".join(output_parts))
 
-    return [
-        ("wireshark_analyze_modbus", wireshark_analyze_modbus),
-        ("wireshark_analyze_s7comm", wireshark_analyze_s7comm),
-        ("wireshark_analyze_dnp3", wireshark_analyze_dnp3),
-    ]
+    return {
+        "modbus": _modbus,
+        "s7comm": _s7comm,
+        "dnp3": _dnp3,
+    }

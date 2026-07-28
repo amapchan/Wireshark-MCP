@@ -1,14 +1,14 @@
 """Guard test: ensure tool docstrings stay within token budget.
 
-Total docstring characters across all tools should stay under 8000 (~2000 tokens).
-This prevents docstring bloat from creeping back in over time.
+Total docstring characters across all tools should stay under the cap below
+(~1300 tokens). This prevents docstring bloat from creeping back in over time.
 """
 
 import ast
 from pathlib import Path
 
 TOOLS_DIR = Path(__file__).parent.parent / "src" / "wireshark_mcp" / "tools"
-MAX_TOTAL_CHARS = 8500
+MAX_TOTAL_CHARS = 5200
 MAX_SINGLE_CHARS = 300
 
 

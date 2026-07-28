@@ -8,7 +8,6 @@ Use these mode-specific playbooks after the initial overview in `SKILL.md`.
 - [Security](#security)
 - [Incident Response](#incident-response)
 - [Troubleshoot](#troubleshoot)
-- [CTF](#ctf)
 
 ## Triage
 
@@ -21,7 +20,7 @@ Recommended flow:
 3. `wireshark_stats_protocol_hierarchy`
 4. `wireshark_stats_endpoints`
 5. `wireshark_stats_conversations`
-6. `wireshark_plot_traffic` or `wireshark_stats_io_graph` if timing matters
+6. `wireshark_stats_io_graph` if timing matters
 7. Follow the most relevant streams with `wireshark_follow_stream`
 
 Interpretation notes:
@@ -44,16 +43,17 @@ Goal: determine whether the capture shows suspicious behavior and explain why.
 Recommended flow:
 
 1. Start with the triage playbook.
-2. Run `wireshark_security_audit` for a broad first pass.
+2. Run `wireshark_quick_analysis` for a broad first pass.
 3. Verify specific signals with:
    - `wireshark_extract_credentials`
    - `wireshark_detect_port_scan`
    - `wireshark_detect_dns_tunnel`
-   - `wireshark_analyze_suspicious_traffic`
+   - `wireshark_detect_beaconing`
+   - `wireshark_detect_exfiltration`
 4. If HTTP, DNS, or TLS matter, extract evidence with:
    - `wireshark_extract_http_requests`
    - `wireshark_extract_dns_queries`
-   - `wireshark_extract_tls_handshakes`
+   - `wireshark_analyze_protocol(protocol="tls_handshakes")`
 5. Follow suspicious conversations with `wireshark_follow_stream`.
 6. Use `wireshark_get_packet_details` or `wireshark_get_packet_context` to anchor claims in exact frames.
 
@@ -78,7 +78,7 @@ Recommended flow:
 
 1. Start with the triage playbook.
 2. Use `wireshark_get_file_info` to understand duration and capture boundaries.
-3. Use `wireshark_list_ips`, `wireshark_stats_endpoints`, and `wireshark_stats_conversations` to map actors.
+3. Use `wireshark_stats_endpoints` and `wireshark_stats_conversations` to map actors.
 4. Use security-focused tools to identify IOCs and suspicious traffic.
 5. Follow the streams that matter most for:
    - initial contact
@@ -111,7 +111,7 @@ Recommended flow:
    - `wireshark_stats_protocol_hierarchy`
    - `wireshark_stats_endpoints`
    - `wireshark_stats_conversations`
-   - `wireshark_plot_traffic` or `wireshark_stats_io_graph`
+   - `wireshark_stats_io_graph`
 3. Use protocol health tools:
    - `wireshark_analyze_tcp_health`
    - `wireshark_stats_expert_info`
@@ -130,31 +130,3 @@ Deliver:
 - probable bottleneck or failure mode
 - exact evidence
 - what to test next outside the capture if needed
-
-## CTF
-
-Goal: recover the flag or hidden payload while documenting the extraction path.
-
-Recommended flow:
-
-1. Start with `wireshark_open_file` and `wireshark_quick_analysis`.
-2. Search for obvious markers:
-   - `wireshark_search_packets(..., "flag", scope="bytes")`
-   - `wireshark_search_packets(..., "CTF", scope="bytes")`
-   - `wireshark_search_packets(..., "password", scope="bytes")`
-3. Inspect DNS, HTTP, TLS, ICMP, SMTP, or unusual protocols for encoded payloads.
-4. Use `wireshark_follow_stream` on interesting streams.
-5. Use `wireshark_decode_payload` for Base64, hex, URL encoding, gzip, and similar content.
-6. If files were transferred, use `wireshark_export_objects`.
-
-Interpretation notes:
-
-- `wireshark_follow_stream` stream indexes are zero-based, mirroring Wireshark's stream selection behavior.
-- If the flag path is not obvious, pivot from endpoints to conversations to candidate streams instead of opening streams at random.
-
-Deliver:
-
-- flag or recovered artifact
-- extraction path
-- exact evidence chain
-- any decoding steps required

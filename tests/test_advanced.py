@@ -84,13 +84,6 @@ class TestFlowGraph:
         assert "Invalid" in result or "error" in result.lower()
 
 
-class TestHttpStats:
-    @pytest.mark.asyncio
-    async def test_builds_correct_command(self, mock_client: MockTSharkClient) -> None:
-        result = await mock_client.get_http_stats("/tmp/test.pcap")
-        assert "http,tree" in result
-
-
 class TestIoStatFiltered:
     @pytest.mark.asyncio
     async def test_with_filters(self, mock_client: MockTSharkClient) -> None:
@@ -126,11 +119,3 @@ class TestKerberos:
         assert "kerberos.msg_type" in result
         assert "kerberos.CNameString" in result
         assert "kerberos.realm" in result
-
-
-class TestGeoip:
-    @pytest.mark.asyncio
-    async def test_builds_correct_command(self, mock_client: MockTSharkClient) -> None:
-        result = await mock_client.extract_geoip("/tmp/test.pcap")
-        assert "ip.use_geoip:TRUE" in result
-        assert "ip.geoip.src_country" in result

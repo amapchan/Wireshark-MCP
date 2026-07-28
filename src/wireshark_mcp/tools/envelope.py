@@ -1,5 +1,13 @@
 import json
+from collections.abc import Awaitable, Callable
 from typing import Any, cast
+
+# A protocol analysis handler: (pcap_file, limit) -> envelope JSON string.
+# Handlers live in the domain modules (protocol/ics/iot) that own their field
+# knowledge; `analyze.py` collects them into one dispatching tool. Every handler
+# takes `limit` even when the underlying tshark facility has nothing to cap, so
+# the dispatcher can call them uniformly.
+ProtocolHandler = Callable[[str, int], Awaitable[str]]
 
 
 def _error_object(error: Any) -> dict[str, Any]:

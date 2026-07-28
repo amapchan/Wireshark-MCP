@@ -35,13 +35,14 @@ Follow this systematic workflow:
 - Use `wireshark_detect_dos_attack("{pcap_file}")` to identify DoS patterns.
 
 ## Step 4: Protocol Deep Dive
-- Use `wireshark_extract_tls_handshakes("{pcap_file}")` to analyze TLS security.
+- Use `wireshark_analyze_protocol("{pcap_file}", protocol="tls_handshakes")` to analyze TLS security.
 - Use `wireshark_extract_http_requests("{pcap_file}")` to review HTTP activity.
 - Use `wireshark_extract_dns_queries("{pcap_file}")` to review DNS queries.
 
 ## Step 5: Anomaly Review
 - Use `wireshark_stats_expert_info("{pcap_file}")` for anomalies.
-- Use `wireshark_analyze_suspicious_traffic("{pcap_file}")` for comprehensive anomaly analysis.
+- Use `wireshark_detect_beaconing("{pcap_file}")` for periodic C2 callbacks.
+- Use `wireshark_detect_protocol_anomalies("{pcap_file}")` for known protocols on non-standard ports.
 
 ## Output
 Create a structured security report in Markdown with:
@@ -63,7 +64,6 @@ You are a network performance engineer analyzing traffic for performance issues.
 - Use `wireshark_open_file("{pcap_file}")` first for capture-wide context and tool recommendations.
 - Use `wireshark_get_file_info("{pcap_file}")` for capture metadata.
 - Use `wireshark_stats_io_graph("{pcap_file}", interval=1)` to visualize traffic patterns.
-- Use `wireshark_plot_traffic("{pcap_file}")` for a quick visual.
 
 ## Step 2: Connection Analysis
 - Use `wireshark_stats_conversations("{pcap_file}", type="tcp")` to see TCP conversations.
@@ -91,48 +91,6 @@ Create a performance analysis report with:
 """
 
     @mcp.prompt()
-    def ctf_solve(pcap_file: str) -> str:
-        """CTF challenge solver workflow for pcap analysis challenges."""
-        return f"""\
-You are an experienced CTF player solving a network forensics challenge.
-
-**Target file**: `{pcap_file}`
-
-## Strategy: Cast a Wide Net First
-
-### Phase 1: Quick Overview
-- Use `wireshark_open_file("{pcap_file}")` first for capture-wide context and tool recommendations.
-- Use `wireshark_get_file_info("{pcap_file}")` for basic info.
-- Use `wireshark_stats_protocol_hierarchy("{pcap_file}")` — unusual protocols are often the key!
-- Use `wireshark_get_packet_list("{pcap_file}", limit=50)` to scan the first packets.
-
-### Phase 2: Data Extraction
-- Use `wireshark_extract_http_requests("{pcap_file}")` — check for suspicious URIs.
-- Use `wireshark_extract_dns_queries("{pcap_file}")` — DNS exfil is common in CTF.
-- Use `wireshark_search_packets("{pcap_file}", "flag", scope="bytes")` — direct flag search.
-- Use `wireshark_search_packets("{pcap_file}", "CTF", scope="bytes")` — variant search.
-- Use `wireshark_search_packets("{pcap_file}", "password", scope="bytes")` — credential search.
-
-### Phase 3: Deep Analysis
-- Look for Base64, hex-encoded, or obfuscated data.
-- Use `wireshark_follow_stream("{pcap_file}", stream_index=0)` on interesting TCP streams.
-- Use `wireshark_export_objects("{pcap_file}", "http", "/tmp/ctf_objects")` to extract files.
-- Use `wireshark_decode_payload(data)` to decode suspicious strings.
-
-### Phase 4: Steganography / Hidden Data
-- Use `wireshark_get_packet_bytes("{pcap_file}", frame_number=N)` for raw hex on suspicious packets.
-- Check for unusual packet sizes, timing patterns, or protocol anomalies.
-- Look at ICMP data, DNS TXT records, HTTP headers for hidden messages.
-
-## Tips
-- Flags often look like: `flag{{...}}`, `CTF{{...}}`, or similar patterns
-- Check HTTP response bodies, not just requests
-- DNS queries can encode data in subdomains
-- FTP/Telnet traffic is usually plaintext
-- Look for Base64 strings (long alphanumeric with = padding)
-"""
-
-    @mcp.prompt()
     def incident_response(pcap_file: str) -> str:
         """Incident response investigation workflow."""
         return f"""\
@@ -147,7 +105,7 @@ You are a SOC analyst investigating a potential security incident from a network
 - Use `wireshark_stats_endpoints("{pcap_file}")` — identify all hosts involved.
 
 ## Phase 2: IOC Extraction (10 minutes)
-- Use `wireshark_list_ips("{pcap_file}")` — get full IP list for SIEM correlation.
+- Use `wireshark_stats_endpoints("{pcap_file}")` — get the host inventory for SIEM correlation.
 - Use `wireshark_extract_dns_queries("{pcap_file}")` — check for DGA domains.
 - Use `wireshark_detect_dns_tunnel("{pcap_file}")` — check for command & control.
 
@@ -155,10 +113,11 @@ You are a SOC analyst investigating a potential security incident from a network
 - Use `wireshark_detect_port_scan("{pcap_file}")` — was there reconnaissance?
 - Use `wireshark_extract_http_requests("{pcap_file}")` — any malicious URLs?
 - Use `wireshark_extract_credentials("{pcap_file}")` — credential theft?
-- Use `wireshark_extract_tls_handshakes("{pcap_file}")` — suspicious certificates?
+- Use `wireshark_analyze_protocol("{pcap_file}", protocol="tls_handshakes")` — suspicious certificates?
 
 ## Phase 4: Impact Assessment
-- Use `wireshark_analyze_suspicious_traffic("{pcap_file}")` — full anomaly analysis.
+- Use `wireshark_detect_exfiltration("{pcap_file}")` — outbound data volume anomalies.
+- Use `wireshark_detect_beaconing("{pcap_file}")` — periodic C2 callbacks.
 - Use `wireshark_follow_stream` on suspicious conversations for payload analysis.
 - Use `wireshark_export_objects` to extract any transferred files.
 
@@ -184,8 +143,8 @@ Provide a concise overview of the network traffic in the capture file.
 3. Use `wireshark_stats_protocol_hierarchy("{pcap_file}")` for protocol breakdown.
 4. Use `wireshark_stats_endpoints("{pcap_file}")` for top talkers.
 5. Use `wireshark_stats_conversations("{pcap_file}")` for communication pairs.
-6. Use `wireshark_plot_traffic("{pcap_file}")` for traffic timeline.
-7. Use `wireshark_plot_protocols("{pcap_file}")` for protocol distribution.
+6. Use `wireshark_stats_io_graph("{pcap_file}")` for the traffic timeline.
+7. Use `wireshark_stats_protocol_hierarchy("{pcap_file}")` for protocol distribution.
 
 Summarize: what type of traffic is this? What are the main hosts communicating? Any anomalies visible at a glance?
 """
@@ -278,7 +237,7 @@ Construct a chronological timeline of all interactions:
 ## Phase 4: Expand — Related Indicators
 Look for additional IOCs connected to the original:
 - Use `wireshark_extract_dns_queries("{pcap_file}")` — did the IOC resolve from a suspicious domain?
-- Use `wireshark_extract_tls_handshakes("{pcap_file}")` — any unusual certificates or SNI values?
+- Use `wireshark_analyze_protocol("{pcap_file}", protocol="tls_handshakes")` — any unusual certificates or SNI values?
 - Use `wireshark_follow_stream("{pcap_file}", stream_index=<N>)` on key conversations for payload inspection.
 - Check if compromised hosts communicated with other suspicious destinations.
 

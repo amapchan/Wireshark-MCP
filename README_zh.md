@@ -70,7 +70,7 @@ wireshark-mcp install   # 自动配置所有检测到的 MCP 客户端
 
 ```
 使用 Wireshark MCP 工具分析 capture.pcap。
-先用 wireshark_open_file 打开，然后运行 wireshark_security_audit。
+先用 wireshark_open_file 打开，然后运行 wireshark_quick_analysis。
 将发现写入 report.md。
 ```
 
@@ -78,25 +78,41 @@ wireshark-mcp install   # 自动配置所有检测到的 MCP 客户端
 
 ## 工具
 
-80+ 工具，每个都由真实 `tshark` 输出支撑，按类别组织：
+51 个工具，每个都由真实 `tshark` 输出支撑，按类别组织：
 
 | 类别 | 亮点 | 数量 |
 |------|------|:----:|
-| **入口与工作流** | `wireshark_open_file`、`wireshark_quick_analysis`、`wireshark_security_audit` | 3 |
-| **数据包分析** | 数据包列表、详情、字节、上下文、流追踪、搜索 | 8 |
-| **数据提取** | HTTP 请求、DNS 查询、TLS 握手、凭据、字段提取 | 11 |
-| **统计** | 协议层次、端点、会话、I/O 图、HTTP/SMB/RTP 统计、绘图 | 13 |
-| **安全与威胁** | 凭据扫描、端口扫描、DNS 隧道、DoS、信标、外泄 | 12 |
-| **协议深入** | TCP 健康、QUIC、WebSocket、gRPC、MQTT、TLS/WPA 解密、指纹 | 11 |
-| **工控/物联网/无线** | Modbus、S7comm、DNP3、CoAP、Zigbee、BLE、Wi-Fi、WireGuard | 8 |
-| **取证与解码** | 文件雕刻、证据链、YARA 扫描、载荷解码、GeoIP | 8 |
-| **文件操作、抓包与套件** | 实时抓包、合并、过滤保存、editcap 裁剪/分割/去重、text2pcap | 11 |
+| **入口与工作流** | `wireshark_open_file`、`wireshark_quick_analysis` | 2 |
+| **数据包分析** | 数据包列表、详情、字节、上下文、流追踪、搜索、文件信息 | 8 |
+| **数据提取** | HTTP 请求、DNS 查询、任意字段提取、对象导出 | 4 |
+| **统计** | 协议层次、端点、会话、I/O 图、专家信息、服务响应时间、流图 | 7 |
+| **安全与异常** | 凭据扫描、端口扫描、DNS 隧道、DoS、信标、外泄、协议异常、YARA | 8 |
+| **协议分析** | `wireshark_analyze_protocol`（20 种协议）、TCP 健康、ARP 欺骗 | 3 |
+| **解密与解析** | TLS/WPA 解密、解密校验、decode-as、协议偏好设置 | 5 |
+| **取证与富化** | TLS 指纹、文件特征扫描、GeoIP | 3 |
+| **文件操作、抓包与套件** | 实时抓包、接口列表、合并、过滤保存、editcap 裁剪/分割/去重/时移、帧提取、text2pcap、能力查询 | 11 |
+
+20 种协议由一个工具覆盖，而不是 20 个工具各覆盖一种：`wireshark_analyze_protocol` 接受 `protocol` 参数（`tls_handshakes`、`mqtt`、`modbus`、`s7comm`、`zigbee`、`wifi`、`rtp`、`kerberos` 等），并为其套用正确的字段与显示过滤器。字段名正是关键——`s7comm.param.item.dbnum` 不该由调用方去猜，而猜错时返回的空结果看起来和"干净的流量"没有区别。
 
 服务器仅需 `tshark` 即可启动。可选工具（`capinfos`、`mergecap`、`editcap`、`dumpcap`、`text2pcap`）自动检测，存在时启用额外功能。
 
 ### 上下文开销
 
-工具列表会随客户端的每一次请求进入 prompt 前缀，因此它的体积是每请求的固定成本。当前对外暴露的表面约为 27 KB（约 6.9k tokens）的 schema，加上约 5 KB 的 annotations；并且它在重启之间逐字节一致，客户端可以缓存该前缀，而不必每个会话重新读取。
+工具列表会随客户端的每一次请求进入 prompt 前缀，因此它的体积是每请求的固定成本。默认表面约为 21 KB——其中参数 schema 约 9 KB、描述约 5 KB、读写 annotations 约 3 KB；并且它在重启之间逐字节一致，客户端可以缓存该前缀，而不必每个会话重新读取。
+
+如果你的客户端从不实时抓包、也不写入 pcap，可以用 `--profile` 暴露更小的表面：
+
+| Profile | 工具数 | 载荷 | 移除的内容 |
+|---------|:-----:|:----:|-----------|
+| `full`（默认） | 51 | ~21 KB | 无 |
+| `analysis` | 41 | ~17 KB | 实时抓包、接口列表、以及全部写文件的工具 |
+| `core` | 33 | ~14 KB | 以上全部，再加解密、解析覆写与底层视图 |
+
+```bash
+wireshark-mcp serve --profile core
+```
+
+每个 profile 都仍然包含内置 prompts、resources、skill 文档以及协议推荐可能指向的全部工具，因此缩小表面不会让模型去调用一个并不存在的工具。
 
 工具结果同样有上限，因为一条结果会在会话余下的全部轮次里一直留在上下文中。超过 8000 字符的输出会保留首尾并标注截断位置，其余部分请用工具自带的 `offset` / `limit` / `display_filter` 参数翻页。调整上限：
 
@@ -104,7 +120,7 @@ wireshark-mcp install   # 自动配置所有检测到的 MCP 客户端
 export WIRESHARK_MCP_MAX_RESULT_CHARS=16000
 ```
 
-每个工具都声明了自己是只读还是写入，因此客户端可以自动放行 74 个只读分析工具，同时仍然对会创建文件的 11 个工具（实时抓包、合并、过滤保存、editcap、text2pcap、对象导出）进行确认。
+每个工具都声明了自己是只读还是写入，因此客户端可以自动放行 40 个只读分析工具，同时仍然对会创建文件的 11 个工具（实时抓包、合并、过滤保存、editcap、text2pcap、帧提取、对象导出）进行确认。
 
 ---
 

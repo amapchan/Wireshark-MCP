@@ -82,7 +82,7 @@ DISPLAY_FILTER_CHEATSHEET = """\
 ### TLS/SSL
 - `tls.handshake.type == 1` — Client Hello
 - `tls.handshake.type == 2` — Server Hello
-- `tls.handshake.extensions.server_name` — SNI field
+- `tls.handshake.extensions_server_name` — SNI field
 
 ### Security
 - `ftp.request.command == "PASS"` — FTP passwords
@@ -143,7 +143,7 @@ PROTOCOL_FIELD_REFERENCE = """\
 ## TLS (tls)
 - `tls.handshake.version` — TLS version
 - `tls.handshake.ciphersuite` — Cipher suite
-- `tls.handshake.extensions.server_name` — SNI
+- `tls.handshake.extensions_server_name` — SNI
 - `tls.handshake.certificate` — Certificate
 
 ## Frame (frame)
@@ -173,14 +173,14 @@ WIRESHARK_MCP_GUIDE = """\
 2. Use `wireshark_detect_port_scan` to find scanning activity
 3. Use `wireshark_detect_dns_tunnel` to check for DNS tunneling
 4. Use `wireshark_detect_dos_attack` to identify DoS patterns
-5. Use `wireshark_analyze_suspicious_traffic` for comprehensive analysis
+5. Use `wireshark_detect_beaconing` and `wireshark_detect_exfiltration` for C2 and data-loss patterns
 
 ## Protocol Analysis Workflow
 
-1. Use `wireshark_extract_tls_handshakes` for TLS/SSL analysis
+1. Use `wireshark_analyze_protocol(protocol="tls_handshakes")` for TLS/SSL analysis
 2. Use `wireshark_analyze_tcp_health` for TCP performance issues
 3. Use `wireshark_detect_arp_spoofing` for ARP-level attacks
-4. Use `wireshark_extract_dhcp_info` for DHCP/network config
+4. Use `wireshark_analyze_protocol(protocol="dhcp")` for DHCP/network config
 
 ## Tips for Efficient Analysis
 

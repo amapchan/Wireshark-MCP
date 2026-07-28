@@ -5,7 +5,9 @@ is a fixed per-request cost and its byte-stability decides whether the client's
 cache survives a server restart. These tests pin both, plus the ceiling that
 keeps one oversized result from inflating the rest of a session.
 
-Baseline before this work: 50,325 bytes. Bump MAX_WIRE_BYTES deliberately.
+50,325 bytes before this work; 21,438 after consolidating the tool surface.
+Bump MAX_WIRE_BYTES deliberately — the slack is there to absorb a schema change,
+not a new tool.
 """
 
 import asyncio
@@ -18,7 +20,7 @@ from wireshark_mcp.mcp_app import WiresharkMCP, cap_result_text
 from wireshark_mcp.server import _build_server
 from wireshark_mcp.tool_annotations import OUTPUT_PATH_PARAMS, WRITE_TOOLS
 
-MAX_WIRE_BYTES = 36_000
+MAX_WIRE_BYTES = 22_500
 REPO_ROOT = Path(__file__).parent.parent
 
 

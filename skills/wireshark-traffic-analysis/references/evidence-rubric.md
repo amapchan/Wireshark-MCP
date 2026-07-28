@@ -131,7 +131,7 @@ Counterexamples:
 
 Good confirmation tools:
 
-- `wireshark_extract_tls_handshakes`
+- `wireshark_analyze_protocol(protocol="tls_handshakes")`
 - `wireshark_follow_stream`
 
 ### TCP health problems

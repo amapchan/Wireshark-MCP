@@ -1,6 +1,6 @@
 ---
 name: "wireshark-traffic-analysis"
-description: "Use when analyzing packet captures or live network traffic with Wireshark MCP; choose the right workflow for triage, security hunting, incident response, troubleshooting, or CTF work, then produce evidence-backed findings with exact filters, streams, frames, and next steps."
+description: "Use when analyzing packet captures or live network traffic with Wireshark MCP; choose the right workflow for triage, security hunting, incident response, or troubleshooting, then produce evidence-backed findings with exact filters, streams, frames, and next steps."
 ---
 
 # Wireshark Traffic Analysis
@@ -13,13 +13,12 @@ Use this skill to turn raw packet captures into a disciplined investigation. The
 - live traffic review after capture
 - security triage, threat hunting, or incident response
 - network and protocol troubleshooting
-- CTF and forensics-style packet challenges
 - any task where packet evidence matters more than intuition
 
 ## Required inputs
 
 - capture path
-- primary goal: `triage`, `security`, `incident-response`, `troubleshoot`, or `ctf`
+- primary goal: `triage`, `security`, `incident-response`, or `troubleshoot`
 - any known scope: suspicious host, port, domain, time window, protocol, or symptom
 
 If the user does not name a goal, default to `triage`.
@@ -46,7 +45,6 @@ If the user does not name a goal, default to `triage`.
 - Prefer Wireshark MCP tools over freehand `tshark` syntax.
 - Never guess display filter syntax. Use `wireshark://reference/display-filters`.
 - Use `wireshark://reference/protocol-fields` when you need field names for extraction or filters.
-- Never decode payloads manually when `wireshark_decode_payload` can verify the result.
 - Treat `wireshark_stats_expert_info` as a lead generator, not a final verdict.
 - When a finding depends on context, follow the full stream before concluding.
 - For large captures, paginate instead of treating the first page as representative.
@@ -95,7 +93,6 @@ Use the matching playbook in [references/playbooks.md](references/playbooks.md):
 - `security`: suspicious traffic, exfiltration, credential exposure, malware behavior
 - `incident-response`: reconstruct the timeline, scope, and affected systems
 - `troubleshoot`: retransmissions, latency, resets, failed handshakes, unstable services
-- `ctf`: flags, hidden payloads, staged transfers, encoded streams
 
 ## Built-in prompts and references
 
@@ -105,7 +102,6 @@ If the user mainly needs a starting workflow rather than a full investigation, t
 - `security_audit`
 - `performance_analysis`
 - `incident_response`
-- `ctf_solve`
 
 Use `wireshark://guide/usage` when you need the repo's built-in MCP workflow reference.
 

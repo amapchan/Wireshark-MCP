@@ -70,7 +70,7 @@ Point your AI client at a `.pcap` file and try:
 
 ```
 Analyze capture.pcap using the Wireshark MCP tools.
-Start with wireshark_open_file, then run wireshark_security_audit.
+Start with wireshark_open_file, then run wireshark_quick_analysis.
 Write findings to report.md.
 ```
 
@@ -78,25 +78,41 @@ Write findings to report.md.
 
 ## Tools
 
-80+ tools, each backed by real `tshark` output — organized into categories:
+51 tools, each backed by real `tshark` output — organized into categories:
 
 | Category | Highlights | Count |
 |----------|-----------|:-----:|
-| **Entry & Workflow** | `wireshark_open_file`, `wireshark_quick_analysis`, `wireshark_security_audit` | 3 |
-| **Packet Analysis** | Packet list, details, bytes, context, stream follow, search | 8 |
-| **Data Extraction** | HTTP requests, DNS queries, TLS handshakes, credentials, fields | 11 |
-| **Statistics** | Protocol hierarchy, endpoints, conversations, I/O graph, HTTP/SMB/RTP stats, plots | 13 |
-| **Security & Threat** | Credential scan, port scan, DNS tunnel, DoS, beaconing, exfiltration | 12 |
-| **Protocol Deep-Dive** | TCP health, QUIC, WebSocket, gRPC, MQTT, TLS/WPA decrypt, fingerprints | 11 |
-| **ICS / IoT / Wireless** | Modbus, S7comm, DNP3, CoAP, Zigbee, BLE, Wi-Fi, WireGuard | 8 |
-| **Forensics & Decode** | File carving, evidence chain, YARA scan, payload decode, GeoIP | 8 |
-| **File Ops, Capture & Suite** | Live capture, merge, filter-save, editcap trim/split/dedup, text2pcap | 11 |
+| **Entry & Workflow** | `wireshark_open_file`, `wireshark_quick_analysis` | 2 |
+| **Packet Analysis** | Packet list, details, bytes, context, stream follow, search, file info | 8 |
+| **Data Extraction** | HTTP requests, DNS queries, arbitrary fields, object export | 4 |
+| **Statistics** | Protocol hierarchy, endpoints, conversations, I/O graph, expert info, service response time, flow graph | 7 |
+| **Security & Anomaly** | Credential scan, port scan, DNS tunnel, DoS, beaconing, exfiltration, protocol anomalies, YARA | 8 |
+| **Protocol Analysis** | `wireshark_analyze_protocol` (20 protocols), TCP health, ARP spoofing | 3 |
+| **Decrypt & Dissection** | TLS/WPA decrypt, decryption check, decode-as, protocol preferences | 5 |
+| **Forensics & Enrichment** | TLS fingerprints, file signature scan, GeoIP | 3 |
+| **File Ops, Capture & Suite** | Live capture, interfaces, merge, filter-save, editcap trim/split/dedup/time-shift, frame extract, text2pcap, capabilities | 11 |
+
+One tool covers 20 protocols rather than 20 tools covering one each: `wireshark_analyze_protocol` takes a `protocol` argument (`tls_handshakes`, `mqtt`, `modbus`, `s7comm`, `zigbee`, `wifi`, `rtp`, `kerberos`, …) and applies the right fields and display filter for it. The field names are the point — `s7comm.param.item.dbnum` is not something a caller should have to guess, and a wrong guess returns an empty result that reads like a clean capture.
 
 The server starts with only `tshark` required. Optional tools (`capinfos`, `mergecap`, `editcap`, `dumpcap`, `text2pcap`) are auto-detected and enable extra features when present.
 
 ### Context cost
 
-The tool list travels in the prompt prefix of every request your client sends, so its size is a fixed per-request cost. The advertised surface is ~27 KB (~6.9k tokens) of schema plus ~5 KB of annotations, and it is byte-identical across restarts so clients can cache the prefix rather than re-reading it each session.
+The tool list travels in the prompt prefix of every request your client sends, so its size is a fixed per-request cost. The default surface is ~21 KB — about 9 KB of parameter schema, 5 KB of descriptions, and 3 KB of read/write annotations — and it is byte-identical across restarts so clients can cache the prefix rather than re-reading it each session.
+
+If your client never captures live traffic or writes pcaps, `--profile` advertises less:
+
+| Profile | Tools | Payload | Drops |
+|---------|:-----:|:-------:|-------|
+| `full` (default) | 51 | ~21 KB | nothing |
+| `analysis` | 41 | ~17 KB | live capture, interface listing, all file-writing tools |
+| `core` | 33 | ~14 KB | the above, plus decryption, dissection overrides, and low-level views |
+
+```bash
+wireshark-mcp serve --profile core
+```
+
+Every profile still contains every tool the bundled prompts, resources, skill files, and protocol recommendations can point the model at, so reducing the surface never leaves it chasing a tool that is not there.
 
 Tool results are bounded too, since a result stays in the conversation for the rest of the session. Output over 8000 characters is truncated head-and-tail with a marker, and the tool's `offset` / `limit` / `display_filter` parameters are the way to page through the rest. Raise or lower the ceiling with:
 
@@ -104,7 +120,7 @@ Tool results are bounded too, since a result stays in the conversation for the r
 export WIRESHARK_MCP_MAX_RESULT_CHARS=16000
 ```
 
-Every tool also declares whether it reads or writes, so clients can auto-approve the 74 read-only analysis tools and still prompt for the 11 that create files (live capture, merge, filter-save, editcap, text2pcap, object export).
+Every tool also declares whether it reads or writes, so clients can auto-approve the 40 read-only analysis tools and still prompt for the 11 that create files (live capture, merge, filter-save, editcap, text2pcap, frame extract, object export).
 
 ---
 

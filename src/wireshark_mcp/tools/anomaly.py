@@ -4,10 +4,7 @@ import asyncio
 import json
 import logging
 import statistics
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable
+from typing import Any
 
 from ..tshark.client import TSharkClient
 from .envelope import normalize_tool_result, parse_tool_result, success_response
@@ -287,46 +284,8 @@ def make_anomaly_tools(client: TSharkClient) -> list[tuple[str, Any]]:
 
         return success_response("\n".join(output_parts))
 
-    async def wireshark_detect_anomalies(pcap_file: str, detectors: str = "all") -> str:
-        """[Anomaly] Run all anomaly detectors concurrently (beacon, exfiltration, protocol). Returns combined findings."""
-        detector_map: dict[str, Callable[[str], Awaitable[str]]] = {
-            "beacon": wireshark_detect_beaconing,
-            "exfiltration": wireshark_detect_exfiltration,
-            "protocol": wireshark_detect_protocol_anomalies,
-        }
-
-        if detectors == "all":
-            selected = list(detector_map.values())
-            selected_names = list(detector_map.keys())
-        else:
-            selected_names = [d.strip() for d in detectors.split(",") if d.strip()]
-            selected = []
-            for name in selected_names:
-                if name in detector_map:
-                    selected.append(detector_map[name])
-                else:
-                    return normalize_tool_result(
-                        {
-                            "success": False,
-                            "error": f"Unknown detector: {name}. Available: {', '.join(detector_map.keys())}",
-                        }
-                    )
-
-        results = await asyncio.gather(*(fn(pcap_file) for fn in selected))
-
-        output_parts = ["Aggregate Anomaly Detection Report", f"Detectors run: {', '.join(selected_names)}", ""]
-        for name, result in zip(selected_names, results, strict=False):
-            output_parts.append(f"{'=' * 60}")
-            output_parts.append(f"  {name.upper()} DETECTOR")
-            output_parts.append(f"{'=' * 60}")
-            output_parts.append(result)
-            output_parts.append("")
-
-        return success_response("\n".join(output_parts))
-
     return [
         ("wireshark_detect_beaconing", wireshark_detect_beaconing),
         ("wireshark_detect_exfiltration", wireshark_detect_exfiltration),
         ("wireshark_detect_protocol_anomalies", wireshark_detect_protocol_anomalies),
-        ("wireshark_detect_anomalies", wireshark_detect_anomalies),
     ]

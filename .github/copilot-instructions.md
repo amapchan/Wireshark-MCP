@@ -1,6 +1,6 @@
 # GitHub Copilot Repository Instructions
 
-For packet capture, protocol analysis, network forensics, incident response, and troubleshooting tasks, prefer the project skill in `.github/skills/wireshark-traffic-analysis/`.
+For packet capture, protocol analysis, network security monitoring, incident response, and troubleshooting tasks, prefer the project skill in `.github/skills/wireshark-traffic-analysis/`.
 
 Use the skill to:
 

@@ -114,17 +114,21 @@ class TestExfiltrationDetection:
         assert "dns.qry.name.len > 50" in result
 
 
-class TestAggregateAnomalies:
+class TestAnomalyToolSurface:
     @pytest.mark.asyncio
-    async def test_aggregate_tool_exists(self, mock_client: MockTSharkClient) -> None:
+    async def test_detectors_are_registered(self, mock_client: MockTSharkClient) -> None:
         from wireshark_mcp.tools.anomaly import make_anomaly_tools
 
         tools = make_anomaly_tools(mock_client)
         tool_names = [name for name, _ in tools]
-        assert "wireshark_detect_anomalies" in tool_names
         assert "wireshark_detect_beaconing" in tool_names
         assert "wireshark_detect_exfiltration" in tool_names
         assert "wireshark_detect_protocol_anomalies" in tool_names
+        # The former wireshark_detect_anomalies aggregate re-scanned the pcap through
+        # its own detectors and embedded their envelopes as text, so a finding could
+        # not be traced to the tshark call that produced it. Callers invoke the
+        # detectors directly instead.
+        assert "wireshark_detect_anomalies" not in tool_names
 
 
 class TestProtocolAnomaly:

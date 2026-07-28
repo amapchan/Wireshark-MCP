@@ -7,7 +7,7 @@ Adapt this template to the user's goal. Keep it short unless the user asks for d
 
 ## Scope
 - Capture: `<path>`
-- Goal: `<triage | security | incident-response | troubleshoot | ctf>`
+- Goal: `<triage | security | incident-response | troubleshoot>`
 - Assumptions: `<none>` or `<brief list>`
 
 ## Executive Summary
