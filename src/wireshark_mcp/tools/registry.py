@@ -64,7 +64,6 @@ PROTOCOL_TOOL_MAP: dict[str, list[str]] = {
         "wireshark_extract_credentials",
     ],
     "ip": [
-        "wireshark_check_threats",
         "wireshark_detect_port_scan",
         "wireshark_detect_dos_attack",
         "wireshark_analyze_suspicious_traffic",

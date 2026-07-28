@@ -6,9 +6,8 @@ import sys
 from collections.abc import Sequence
 from typing import Literal, cast
 
-from mcp.server.fastmcp import FastMCP
-
 from . import __version__
+from .mcp_app import WiresharkMCP
 from .prompts import register_prompts
 from .resources import register_resources
 from .tools.advanced import register_advanced_tools
@@ -48,13 +47,13 @@ def _configure_windows_event_loop() -> None:
         asyncio.set_event_loop_policy(policy_cls())
 
 
-def _build_server(*, host: str, port: int, log_level: LogLevelName) -> FastMCP:
+def _build_server(*, host: str, port: int, log_level: LogLevelName) -> WiresharkMCP:
     """Build and configure the MCP server with a stable tool surface."""
     # Read allowed directories from environment
     allowed_dirs_env = os.environ.get("WIRESHARK_MCP_ALLOWED_DIRS", "")
     allowed_dirs = [d.strip() for d in allowed_dirs_env.split(",") if d.strip()] or None
 
-    mcp = FastMCP("Wireshark MCP", dependencies=["tshark"], host=host, port=port, log_level=log_level)
+    mcp = WiresharkMCP("Wireshark MCP", dependencies=["tshark"], host=host, port=port, log_level=log_level)
     client = WiresharkSuiteClient(allowed_dirs=allowed_dirs)
 
     # ── Core tools (always registered) ──────────────────────────────────

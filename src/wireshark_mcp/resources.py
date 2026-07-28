@@ -169,12 +169,11 @@ WIRESHARK_MCP_GUIDE = """\
 
 ## Security Analysis Workflow
 
-1. Use `wireshark_check_threats` to check captured URLs and hostnames against threat intelligence
-2. Use `wireshark_extract_credentials` to find plaintext credentials
-3. Use `wireshark_detect_port_scan` to find scanning activity
-4. Use `wireshark_detect_dns_tunnel` to check for DNS tunneling
-5. Use `wireshark_detect_dos_attack` to identify DoS patterns
-6. Use `wireshark_analyze_suspicious_traffic` for comprehensive analysis
+1. Use `wireshark_extract_credentials` to find plaintext credentials
+2. Use `wireshark_detect_port_scan` to find scanning activity
+3. Use `wireshark_detect_dns_tunnel` to check for DNS tunneling
+4. Use `wireshark_detect_dos_attack` to identify DoS patterns
+5. Use `wireshark_analyze_suspicious_traffic` for comprehensive analysis
 
 ## Protocol Analysis Workflow
 

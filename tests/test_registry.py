@@ -62,7 +62,6 @@ class TestToolRegistration:
             "wireshark_detect_arp_spoofing",
             "wireshark_extract_smtp_emails",
             "wireshark_extract_dhcp_info",
-            "wireshark_check_threats",
             "wireshark_extract_credentials",
             "wireshark_detect_port_scan",
             "wireshark_detect_dns_tunnel",
@@ -109,7 +108,6 @@ class TestRecommendations:
 
     def test_ip_recommends_security_tools(self, mock_client: MockTSharkClient) -> None:
         recommended = self._registry(mock_client).recommended_tools_for_protocols({"ip"})
-        assert "wireshark_check_threats" in recommended
         assert "wireshark_detect_port_scan" in recommended
         assert "wireshark_detect_dos_attack" in recommended
         assert "wireshark_analyze_suspicious_traffic" in recommended
@@ -119,7 +117,7 @@ class TestRecommendations:
         assert "wireshark_extract_http_requests" in recommended
         assert "wireshark_extract_dns_queries" in recommended
         assert "wireshark_extract_tls_handshakes" in recommended
-        assert "wireshark_check_threats" in recommended
+        assert "wireshark_detect_port_scan" in recommended
 
     def test_unknown_protocol_recommends_nothing(self, mock_client: MockTSharkClient) -> None:
         recommended = self._registry(mock_client).recommended_tools_for_protocols({"unknown_protocol"})

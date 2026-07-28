@@ -18,7 +18,6 @@ htmlcov/
 .pytest_cache/
 
 # Runtime caches
-urlhaus_cache.txt
 .mcpregistry_*
 .claude/worktrees/
 
@@ -26,9 +25,6 @@ urlhaus_cache.txt
 .DS_Store
 
 # Documentation site
-docs-site/node_modules/
-docs-site/.astro/
-docs-site/dist/
 
 # Spec (internal)
 spec/
@@ -37,7 +33,6 @@ spec/
 # Local / duplicated docs
 docs/
 changelog/
-docs-site/README.md
 AGENTS.md
 GEMINI.md
 CODE_OF_CONDUCT.md

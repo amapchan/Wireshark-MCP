@@ -10,16 +10,54 @@ def section(title: str) -> str:
     return f"### {title}"
 
 
+def parse_tsv_rows(data: str, *, skip_header: bool = True, strip_quotes: bool = True) -> list[list[str]]:
+    """Split tab-separated tshark field output into rows of cells.
+
+    skip_header: drop the first data line (from tshark's ``-E header=y``).
+    strip_quotes: strip surrounding whitespace and double-quotes from each cell.
+    Comment lines (starting with ``#``) and blank lines are always dropped.
+    """
+    lines = [ln for ln in data.splitlines() if ln.strip() and not ln.startswith("#")]
+    if skip_header and lines:
+        lines = lines[1:]
+    rows: list[list[str]] = []
+    for line in lines:
+        cells = line.split("\t")
+        if strip_quotes:
+            cells = [c.strip().strip('"') for c in cells]
+        rows.append(cells)
+    return rows
+
+
 def smart_truncate(text: str, max_chars: int = 4000) -> str:
     """Truncate long output preserving head and tail."""
     if len(text) <= max_chars:
         return text
-    tail_budget = 500
-    head_budget = max_chars - tail_budget - 60
-    head = text[:head_budget]
-    tail = text[-tail_budget:]
+    if max_chars <= 0:
+        return ""
+
+    # Compute the marker and content budgets together so very small limits never
+    # produce a negative slice (which would retain almost the entire input).
+    marker = f"\n\n[... {len(text)} chars omitted, use offset for pagination ...]\n\n"
+    if len(marker) >= max_chars:
+        return text[:max_chars]
+
+    remaining = max_chars - len(marker)
+    tail_budget = min(500, remaining // 4)
+    head_budget = remaining - tail_budget
     omitted = len(text) - head_budget - tail_budget
-    return f"{head}\n\n[... {omitted} chars omitted, use offset for pagination ...]\n\n{tail}"
+    marker = f"\n\n[... {omitted} chars omitted, use offset for pagination ...]\n\n"
+
+    # The number of digits in `omitted` can change the marker length.
+    remaining = max_chars - len(marker)
+    tail_budget = min(500, max(0, remaining // 4))
+    head_budget = max(0, remaining - tail_budget)
+    omitted = len(text) - head_budget - tail_budget
+    marker = f"\n\n[... {omitted} chars omitted, use offset for pagination ...]\n\n"
+    head_budget = max(0, max_chars - len(marker) - tail_budget)
+
+    result = f"{text[:head_budget]}{marker}{text[-tail_budget:] if tail_budget else ''}"
+    return result[:max_chars]
 
 
 def summarize_tabular(data: str, max_rows: int = 50) -> str:

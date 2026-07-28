@@ -39,12 +39,12 @@
 
 ## What is this?
 
-An [MCP server](https://modelcontextprotocol.io/introduction) that wraps `tshark` (and optional Wireshark suite tools) into a structured analysis interface. Works with Claude Desktop, Claude Code, Cursor, VS Code, and [18+ other MCP clients](docs-site/src/content/docs/getting-started/mcp-clients.md).
+An [MCP server](https://modelcontextprotocol.io/introduction) that wraps `tshark` (and optional Wireshark suite tools) into a structured analysis interface. Works with Claude Desktop, Claude Code, Cursor, VS Code, and 18+ other MCP clients.
 
 ```
 You:    "Find all DNS queries going to suspicious domains in this capture."
-Claude: [calls wireshark_extract_dns_queries → wireshark_check_threats]
-        "Found 3 queries to domains flagged by URLhaus: ..."
+Claude: [calls wireshark_extract_dns_queries → wireshark_detect_dns_tunnel]
+        "Found repeated high-entropy DNS queries consistent with tunneling: ..."
 ```
 
 ---
@@ -60,7 +60,7 @@ wireshark-mcp install   # auto-configures all detected MCP clients
 
 Restart your AI client — done.
 
-Run `wireshark-mcp doctor` if anything looks off. See [docs-site/src/content/docs/reference/manual-configuration.md](docs-site/src/content/docs/reference/manual-configuration.md) for manual setup or platform-specific notes.
+Run `wireshark-mcp doctor` if anything looks off. See [docs/manual-configuration.md](docs/manual-configuration.md) for manual setup or platform-specific notes.
 
 ---
 
@@ -86,7 +86,7 @@ Write findings to report.md.
 | **Packet Analysis** | Packet list, details, bytes, context, stream follow, search | 8 |
 | **Data Extraction** | HTTP requests, DNS queries, TLS handshakes, credentials, fields | 11 |
 | **Statistics** | Protocol hierarchy, endpoints, conversations, I/O graph, HTTP/SMB/RTP stats, plots | 13 |
-| **Security & Threat** | Threat intel, credential scan, port scan, DNS tunnel, DoS, beaconing, exfil | 13 |
+| **Security & Threat** | Credential scan, port scan, DNS tunnel, DoS, beaconing, exfiltration | 12 |
 | **Protocol Deep-Dive** | TCP health, QUIC, WebSocket, gRPC, MQTT, TLS/WPA decrypt, fingerprints | 11 |
 | **ICS / IoT / Wireless** | Modbus, S7comm, DNP3, CoAP, Zigbee, BLE, Wi-Fi, WireGuard | 8 |
 | **Forensics & Decode** | File carving, evidence chain, YARA scan, payload decode, GeoIP | 8 |
@@ -94,16 +94,28 @@ Write findings to report.md.
 
 The server starts with only `tshark` required. Optional tools (`capinfos`, `mergecap`, `editcap`, `dumpcap`, `text2pcap`) are auto-detected and enable extra features when present.
 
+### Context cost
+
+The tool list travels in the prompt prefix of every request your client sends, so its size is a fixed per-request cost. The advertised surface is ~27 KB (~6.9k tokens) of schema plus ~5 KB of annotations, and it is byte-identical across restarts so clients can cache the prefix rather than re-reading it each session.
+
+Tool results are bounded too, since a result stays in the conversation for the rest of the session. Output over 8000 characters is truncated head-and-tail with a marker, and the tool's `offset` / `limit` / `display_filter` parameters are the way to page through the rest. Raise or lower the ceiling with:
+
+```bash
+export WIRESHARK_MCP_MAX_RESULT_CHARS=16000
+```
+
+Every tool also declares whether it reads or writes, so clients can auto-approve the 74 read-only analysis tools and still prompt for the 11 that create files (live capture, merge, filter-save, editcap, text2pcap, object export).
+
 ---
 
 ## Documentation
 
 | Topic | Link |
 |-------|------|
-| Platform setup (macOS/Linux/Windows) | [docs-site/src/content/docs/reference/toolchain.md](docs-site/src/content/docs/reference/toolchain.md) |
-| Manual client configuration | [docs-site/src/content/docs/reference/manual-configuration.md](docs-site/src/content/docs/reference/manual-configuration.md) |
-| Prompt templates | [docs-site/src/content/docs/reference/playbooks.mdx](docs-site/src/content/docs/reference/playbooks.mdx) |
-| Release checklist | [docs-site/src/content/docs/reference/changelog.md](docs-site/src/content/docs/reference/changelog.md) |
+| Platform setup (macOS/Linux/Windows) | [docs/platform-validation.md](docs/platform-validation.md) |
+| Manual client configuration | [docs/manual-configuration.md](docs/manual-configuration.md) |
+| Prompt templates | [docs/prompt-engineering.md](docs/prompt-engineering.md) |
+| Release checklist | [docs/release-checklist.md](docs/release-checklist.md) |
 | Contributing | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | Changelog | [GitHub Releases](https://github.com/bx33661/Wireshark-MCP/releases) |
 | Security policy | [SECURITY.md](SECURITY.md) |

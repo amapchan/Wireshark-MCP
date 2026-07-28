@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Literal
 
 from mcp.server.fastmcp import FastMCP
 
@@ -56,8 +56,8 @@ def register_extract_tools(mcp: FastMCP, client: TSharkClient) -> None:
         )
 
     @mcp.tool()
-    async def wireshark_list_ips(pcap_file: str, type: str = "both") -> str:
-        """[Convenience] List unique IP addresses. type: 'src'|'dst'|'both'."""
+    async def wireshark_list_ips(pcap_file: str, type: Literal["src", "dst", "both"] = "both") -> str:
+        """[Convenience] List unique IP addresses."""
         fields = []
         if type in ["src", "both"]:
             fields.append("ip.src")
@@ -89,9 +89,13 @@ def register_extract_tools(mcp: FastMCP, client: TSharkClient) -> None:
 
     @mcp.tool()
     async def wireshark_search_packets(
-        pcap_file: str, match_pattern: str, search_type: str = "string", limit: int = 50, scope: str = "bytes"
+        pcap_file: str,
+        match_pattern: str,
+        search_type: Literal["string", "hex", "regex"] = "string",
+        limit: int = 50,
+        scope: Literal["bytes", "details", "filter"] = "bytes",
     ) -> str:
-        """[Search] Find packets by content. scope: 'bytes'|'details'|'filter'. search_type: 'string'|'hex'|'regex'."""
+        """[Search] Find packets by content."""
         return normalize_tool_result(
             await client.search_packet_contents(pcap_file, match_pattern, search_type, limit=limit, scope=scope)
         )

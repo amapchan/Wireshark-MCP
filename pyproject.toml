@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "wireshark-mcp"
 version = "2.0.0"
-description = "A production-grade Model Context Protocol (MCP) server for Wireshark"
+description = "A Model Context Protocol (MCP) server for Wireshark / tshark packet analysis"
 readme = "README.md"
 keywords = ["mcp", "wireshark", "tshark", "packet-analysis", "network", "pcap", "model-context-protocol", "llm", "security"]
 license = "MIT"
@@ -14,7 +14,7 @@ authors = [
     { name = "bx33661" },
 ]
 classifiers = [
-    "Development Status :: 5 - Production/Stable",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
     "License :: OSI Approved :: MIT License",
@@ -54,7 +54,6 @@ wireshark-mcp = "wireshark_mcp.server:main"
 
 [tool.hatch.build.targets.wheel.force-include]
 "skills" = "wireshark_mcp/skills"
-"src/wireshark_mcp/data" = "wireshark_mcp/data"
 
 [tool.ruff]
 target-version = "py310"
