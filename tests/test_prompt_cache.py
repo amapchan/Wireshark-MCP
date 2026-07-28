@@ -12,6 +12,7 @@ not a new tool.
 
 import asyncio
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -72,12 +73,14 @@ def test_surface_is_byte_identical_across_hash_seeds() -> None:
     )
     outputs = []
     for seed in ("0", "1", "424242"):
+        env = os.environ.copy()
+        env["PYTHONHASHSEED"] = seed
         proc = subprocess.run(
             [sys.executable, "-c", script],
             cwd=REPO_ROOT,
             capture_output=True,
             text=True,
-            env={"PYTHONHASHSEED": seed, "PATH": "/usr/bin:/bin"},
+            env=env,
             check=True,
         )
         outputs.append(proc.stdout.strip())
