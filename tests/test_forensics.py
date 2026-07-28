@@ -1,6 +1,7 @@
 """Tests for forensics tools."""
 
 import json
+from pathlib import Path
 
 import pytest
 from conftest import MockTSharkClient
@@ -9,12 +10,12 @@ from wireshark_mcp.tools.envelope import success_response
 from wireshark_mcp.tools.forensics import make_forensics_tools
 
 
-def _carve_tool(client: MockTSharkClient):
-    return dict(make_forensics_tools(client))["wireshark_carve_files"]
+def _scan_tool(client: MockTSharkClient):
+    return dict(make_forensics_tools(client))["wireshark_scan_file_signatures"]
 
 
-class TestCarveFilesDetection:
-    """Regression: carve must count real matches, not report every type blindly."""
+class TestFileSignatureScan:
+    """Regression: the scan must count real matches, not report every type blindly."""
 
     @pytest.mark.asyncio
     async def test_zero_matches_reports_nothing(self, mock_client: MockTSharkClient) -> None:
@@ -22,7 +23,7 @@ class TestCarveFilesDetection:
             return success_response("frame.number\t_ws.col.Info\n")  # header row, no matches
 
         mock_client.search_packet_contents = header_only  # type: ignore[method-assign]
-        out = json.loads(await _carve_tool(mock_client)("x.pcap"))
+        out = json.loads(await _scan_tool(mock_client)("x.pcap"))
         assert "No embedded files detected" in out["data"]
         assert "detected in traffic" not in out["data"]
 
@@ -34,7 +35,7 @@ class TestCarveFilesDetection:
             return success_response("frame.number\t_ws.col.Info\n")
 
         mock_client.search_packet_contents = only_pe  # type: ignore[method-assign]
-        out = json.loads(await _carve_tool(mock_client)("x.pcap"))
+        out = json.loads(await _scan_tool(mock_client)("x.pcap"))
         assert "PE/EXE: 2 packet(s)" in out["data"]
         assert "ELF" not in out["data"]
         assert "PDF" not in out["data"]
@@ -47,122 +48,97 @@ class TestCarveFilesDetection:
             return error_response("boom")
 
         mock_client.search_packet_contents = always_error  # type: ignore[method-assign]
-        out = json.loads(await _carve_tool(mock_client)("x.pcap"))
+        out = json.loads(await _scan_tool(mock_client)("x.pcap"))
         assert "No embedded files detected" in out["data"]
 
 
-class TestFileCarving:
-    """Tests for wireshark_carve_files."""
-
-    @pytest.mark.asyncio
-    async def test_carve_searches_magic_bytes(self, mock_client: MockTSharkClient) -> None:
-        result = await mock_client.search_packet_contents(
-            "test.pcap",
-            "4d5a",
-            search_type="hex",
-            limit=50,
-        )
-        assert "4d5a" in result
-
-    @pytest.mark.asyncio
-    async def test_carve_searches_pdf_magic(self, mock_client: MockTSharkClient) -> None:
-        result = await mock_client.search_packet_contents(
-            "test.pcap",
-            "255044462d",
-            search_type="hex",
-            limit=50,
-        )
-        assert "255044462d" in result
+def _fingerprint_tool(client: MockTSharkClient):
+    return dict(make_forensics_tools(client))["wireshark_extract_fingerprints"]
 
 
 class TestJa3Fingerprints:
-    """Tests for wireshark_extract_fingerprints."""
+    """Tests for wireshark_extract_fingerprints, through the tool."""
 
     @pytest.mark.asyncio
-    async def test_ja3_field_extraction(self, mock_client: MockTSharkClient) -> None:
-        result = await mock_client.extract_fields(
-            "test.pcap",
-            [
-                "ip.src",
-                "ip.dst",
-                "tcp.dstport",
-                "tls.handshake.ja3",
-                "tls.handshake.ja3s",
-                "tls.handshake.extensions.server_name",
-            ],
-            display_filter="tls.handshake.type == 1",
-            limit=100,
-        )
-        assert "tls.handshake.ja3" in result
-        assert "tls.handshake.type == 1" in result
+    async def test_ja3_and_ja3s_are_queried_under_their_own_handshake_types(
+        self, mock_client: MockTSharkClient
+    ) -> None:
+        # JA3 comes from the Client Hello and JA3S from the Server Hello. Asking for both
+        # under `type == 1` — as this tool used to — leaves the ja3s column empty in every
+        # row while still advertising JA3S, so the two passes must stay separate.
+        await _fingerprint_tool(mock_client)("x.pcap")
+
+        client_pass = [c for c in mock_client._commands if "tls.handshake.ja3" in c]
+        server_pass = [c for c in mock_client._commands if "tls.handshake.ja3s" in c]
+        assert client_pass, "no pass requested tls.handshake.ja3"
+        assert server_pass, "no pass requested tls.handshake.ja3s"
+
+        assert "tls.handshake.type == 1" in client_pass[0]
+        assert "tls.handshake.type == 2" in server_pass[0]
+        # ja3s must not ride along on the Client Hello pass, where it is always empty.
+        assert "tls.handshake.ja3s" not in client_pass[0]
 
     @pytest.mark.asyncio
-    async def test_ja3_uses_correct_filter(self, mock_client: MockTSharkClient) -> None:
-        result = await mock_client.extract_fields(
-            "test.pcap",
-            [
-                "ip.src",
-                "ip.dst",
-                "tcp.dstport",
-                "tls.handshake.ja3",
-                "tls.handshake.ja3s",
-                "tls.handshake.extensions.server_name",
-            ],
-            display_filter="tls.handshake.type == 1",
-            limit=100,
+    async def test_no_fingerprint_list_ships_with_the_package(self, tmp_path, monkeypatch) -> None:
+        # The bundled five-entry JA3 list was removed: a JA3 identifies a TLS
+        # configuration rather than an application, so a shipped label attributes
+        # traffic it cannot actually attribute. Assert the absence directly — checking
+        # the tool's output instead would pass whenever a shipped list simply had no
+        # match in the capture.
+        import wireshark_mcp
+        import wireshark_mcp.tools.forensics as forensics
+
+        pkg_dir = Path(next(iter(wireshark_mcp.__path__)))
+        assert not list(pkg_dir.glob("data/fingerprints/*.json")), (
+            "a fingerprint list is shipping inside the package again"
         )
-        assert "-Y" in result
-        assert "tls.handshake.type == 1" in result
-        assert "-e tls.handshake.ja3s" in result
-        assert "-e tls.handshake.extensions.server_name" in result
 
-
-class TestEvidenceChain:
-    """Tests for wireshark_build_evidence_chain."""
+        # With no user list either, matching must be skipped entirely.
+        monkeypatch.setattr(Path, "home", lambda: tmp_path)
+        forensics._FINGERPRINT_DB = None
+        try:
+            assert forensics._load_fingerprint_db() == []
+        finally:
+            forensics._FINGERPRINT_DB = None
 
     @pytest.mark.asyncio
-    async def test_evidence_chain_extracts_dns(self, mock_client: MockTSharkClient) -> None:
-        result = await mock_client.extract_fields(
-            "test.pcap",
-            ["dns.qry.name", "dns.a", "dns.aaaa"],
-            display_filter="dns.flags.response == 1",
-            limit=500,
+    async def test_user_supplied_list_is_still_matched(self, tmp_path, monkeypatch) -> None:
+        # Removing the bundled list must not remove the capability for an operator who
+        # maintains their own intel.
+        import wireshark_mcp.tools.forensics as forensics
+
+        fp_dir = tmp_path / ".wireshark-mcp" / "fingerprints"
+        fp_dir.mkdir(parents=True)
+        (fp_dir / "mine.json").write_text(
+            json.dumps({"fingerprints": [{"ja3": "abc123", "label": "Mine", "category": "internal"}]})
         )
-        assert "dns.flags.response == 1" in result
-        assert "-e dns.qry.name" in result
+        monkeypatch.setattr(Path, "home", lambda: tmp_path)
+
+        forensics._FINGERPRINT_DB = None
+        try:
+            assert forensics._load_fingerprint_db() == [{"ja3": "abc123", "label": "Mine", "category": "internal"}]
+        finally:
+            forensics._FINGERPRINT_DB = None
 
     @pytest.mark.asyncio
-    async def test_evidence_chain_extracts_connections(self, mock_client: MockTSharkClient) -> None:
-        result = await mock_client.extract_fields(
-            "test.pcap",
-            ["ip.src", "ip.dst", "tcp.dstport", "frame.time_epoch"],
-            display_filter="tcp.flags.syn == 1 && tcp.flags.ack == 0",
-            limit=500,
-        )
-        assert "tcp.flags.syn == 1" in result
+    async def test_match_compares_the_ja3_column_not_the_whole_row(self, mock_client: MockTSharkClient) -> None:
+        # A substring test against the line also fires when the hash appears in SNI or
+        # an address, which would report a match for traffic that has none.
+        import wireshark_mcp.tools.forensics as forensics
 
+        ja3 = "0b85eb0d4981e69064e40753e4f0ac5f"
 
-class TestMetadataEnrichment:
-    """Tests for wireshark_enrich_metadata."""
+        async def rows(*_a, **_k):
+            # The hash appears only inside the server_name column.
+            return success_response(
+                f'ip.src\tip.dst\ttcp.dstport\ttls.handshake.ja3\tsni\n"10.0.0.1"\t"10.0.0.2"\t"443"\t"deadbeef"\t"{ja3}.example.com"\n'
+            )
 
-    @pytest.mark.asyncio
-    async def test_extracts_unique_ips(self, mock_client: MockTSharkClient) -> None:
-        result = await mock_client.extract_fields(
-            "test.pcap",
-            ["ip.dst"],
-            display_filter="ip && !ip.dst == 10.0.0.0/8 && !ip.dst == 172.16.0.0/12 && !ip.dst == 192.168.0.0/16",
-            limit=500,
-        )
-        assert "ip.dst" in result
-        assert "10.0.0.0/8" in result
+        mock_client.extract_fields = rows  # type: ignore[method-assign]
+        forensics._FINGERPRINT_DB = [{"ja3": ja3, "label": "Test", "category": "test"}]
+        try:
+            out = json.loads(await _fingerprint_tool(mock_client)("x.pcap"))
+        finally:
+            forensics._FINGERPRINT_DB = None
 
-    @pytest.mark.asyncio
-    async def test_extracts_dns_names(self, mock_client: MockTSharkClient) -> None:
-        result = await mock_client.extract_fields(
-            "test.pcap",
-            ["dns.qry.name"],
-            display_filter="dns.flags.response == 0",
-            limit=500,
-        )
-        assert "dns.qry.name" in result
-        assert "dns.flags.response == 0" in result
+        assert "MATCH" not in out["data"], "matched a hash that was not in the JA3 column"

@@ -7,6 +7,5 @@ Use it for:
 - `pcap` and `pcapng` analysis
 - security hunting and incident response
 - network troubleshooting
-- CTF and forensics-style packet work
 
 Prefer the skill playbooks, evidence rubric, and report template over ad hoc analysis.

@@ -57,16 +57,13 @@ class TestToolRegistration:
             "wireshark_extract_dns_queries",
             "wireshark_export_objects",
             "wireshark_verify_ssl_decryption",
-            "wireshark_extract_tls_handshakes",
+            "wireshark_analyze_protocol",
             "wireshark_analyze_tcp_health",
             "wireshark_detect_arp_spoofing",
-            "wireshark_extract_smtp_emails",
-            "wireshark_extract_dhcp_info",
             "wireshark_extract_credentials",
             "wireshark_detect_port_scan",
             "wireshark_detect_dns_tunnel",
             "wireshark_detect_dos_attack",
-            "wireshark_analyze_suspicious_traffic",
         ]
         for tool_name in expected_tools:
             assert tool_name in registry._catalog, f"Missing tool: {tool_name}"
@@ -103,20 +100,22 @@ class TestRecommendations:
 
     def test_recommends_tls_tools(self, mock_client: MockTSharkClient) -> None:
         recommended = self._registry(mock_client).recommended_tools_for_protocols({"tls"})
-        assert "wireshark_extract_tls_handshakes" in recommended
+        # Per-protocol analysis is one tool now, so the recommendation has to carry the
+        # argument: the bare tool name would leave the caller guessing the enum value.
+        assert 'wireshark_analyze_protocol(protocol="tls_handshakes")' in recommended
         assert "wireshark_verify_ssl_decryption" in recommended
 
     def test_ip_recommends_security_tools(self, mock_client: MockTSharkClient) -> None:
         recommended = self._registry(mock_client).recommended_tools_for_protocols({"ip"})
         assert "wireshark_detect_port_scan" in recommended
         assert "wireshark_detect_dos_attack" in recommended
-        assert "wireshark_analyze_suspicious_traffic" in recommended
+        assert "wireshark_geoip_enrich" in recommended
 
     def test_multiple_protocols(self, mock_client: MockTSharkClient) -> None:
         recommended = self._registry(mock_client).recommended_tools_for_protocols({"http", "dns", "tls", "ip"})
         assert "wireshark_extract_http_requests" in recommended
         assert "wireshark_extract_dns_queries" in recommended
-        assert "wireshark_extract_tls_handshakes" in recommended
+        assert 'wireshark_analyze_protocol(protocol="tls_handshakes")' in recommended
         assert "wireshark_detect_port_scan" in recommended
 
     def test_unknown_protocol_recommends_nothing(self, mock_client: MockTSharkClient) -> None:
@@ -129,8 +128,9 @@ class TestRecommendations:
         registry = self._registry(mock_client)
         all_protocols = set(PROTOCOL_TOOL_MAP)
         recommended = registry.recommended_tools_for_protocols(all_protocols)
-        for tool_name in recommended:
-            assert tool_name in registry._catalog
+        assert recommended, "expected recommendations for the full protocol map"
+        for call in recommended:
+            assert call.split("(", 1)[0] in registry._catalog
 
 
 class TestOpenFileTool:

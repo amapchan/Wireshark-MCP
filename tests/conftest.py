@@ -31,6 +31,31 @@ class MockTSharkClient(TSharkClient):
         self._version: str | None = None
         self._allowed_dirs = [Path(d).resolve() for d in allowed_dirs] if allowed_dirs else None
         self._last_cmd: list[str] = []
+        # Line capping is applied by the runner rather than argv, so tests that need to
+        # assert a caller's `limit` reached tshark have to read it from here.
+        self._last_limit_lines: int = 0
+        # Every command, in order. Tools that make several tshark passes (a request plus
+        # its response, a summary plus a breakout) would otherwise only expose the last.
+        self._commands: list[list[str]] = []
+
+    def fields_requested(self) -> set[str]:
+        """Every `-e` field across all recorded commands, as exact tokens.
+
+        Tests assert against this rather than searching the echoed command string:
+        `"-e foo.bar" in cmd_text` is also true when the tool asked for `foo.barbaz`,
+        so a mistyped field name would pass.
+        """
+        fields: set[str] = set()
+        for cmd in self._commands:
+            fields.update(arg for prev, arg in zip(cmd, cmd[1:], strict=False) if prev == "-e")
+        return fields
+
+    def filters_applied(self) -> set[str]:
+        """Every `-Y` display filter across all recorded commands."""
+        filters: set[str] = set()
+        for cmd in self._commands:
+            filters.update(arg for prev, arg in zip(cmd, cmd[1:], strict=False) if prev == "-Y")
+        return filters
 
     def _validate_file(self, filepath: str) -> dict[str, Any]:
         """Always succeed for mock, unless sandbox is enabled."""
@@ -51,6 +76,8 @@ class MockTSharkClient(TSharkClient):
         timeout: int = 30,
     ) -> str:
         self._last_cmd = cmd
+        self._last_limit_lines = limit_lines
+        self._commands.append(list(cmd))
         # Mirror the real client's contract: always return a success envelope.
         return self._ok("CMD: " + " ".join(cmd))
 

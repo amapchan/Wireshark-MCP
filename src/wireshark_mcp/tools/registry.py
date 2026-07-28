@@ -9,7 +9,7 @@ capture actually contains. It does not add or remove tools.
 import logging
 import re
 from collections.abc import Callable
-from typing import Any
+from typing import Any, NamedTuple
 
 from mcp.server.fastmcp import FastMCP
 
@@ -22,106 +22,136 @@ logger = logging.getLogger("wireshark_mcp")
 ToolFactory = Callable[[TSharkClient], list[tuple[str, Any]]]
 
 
+class Recommendation(NamedTuple):
+    """A tool to run, plus the `protocol` argument to pass if it needs one."""
+
+    tool: str
+    protocol: str | None = None
+
+    def render(self) -> str:
+        """The call to suggest, e.g. `wireshark_analyze_protocol(protocol="mqtt")`."""
+        if self.protocol is None:
+            return self.tool
+        return f'{self.tool}(protocol="{self.protocol}")'
+
+
 # ── Protocol → recommended tools ────────────────────────────────────────────
-# Maps a protocol seen in the capture to the analysis tools worth running for it.
+# Maps a protocol seen in the capture to the analysis worth running for it.
 # Used only to build recommendation text; every listed tool is always registered.
-PROTOCOL_TOOL_MAP: dict[str, list[str]] = {
+#
+# An entry may carry a `protocol` argument, because most per-protocol analysis now
+# lives behind the single `wireshark_analyze_protocol` tool. Recommending the bare
+# tool name would drop the one thing the caller cannot infer — which enum value
+# applies to the capture in front of them — so the argument travels with the name.
+PROTOCOL_TOOL_MAP: dict[str, list[Recommendation]] = {
     "http": [
-        "wireshark_extract_http_requests",
-        "wireshark_export_objects",
-        "wireshark_extract_credentials",
-        "wireshark_yara_scan",
+        Recommendation("wireshark_extract_http_requests"),
+        Recommendation("wireshark_export_objects"),
+        Recommendation("wireshark_extract_credentials"),
+        Recommendation("wireshark_yara_scan"),
     ],
     "dns": [
-        "wireshark_extract_dns_queries",
-        "wireshark_detect_dns_tunnel",
+        Recommendation("wireshark_extract_dns_queries"),
+        Recommendation("wireshark_detect_dns_tunnel"),
     ],
     "tls": [
-        "wireshark_extract_tls_handshakes",
-        "wireshark_verify_ssl_decryption",
-        "wireshark_extract_fingerprints",
+        Recommendation("wireshark_analyze_protocol", "tls_handshakes"),
+        Recommendation("wireshark_verify_ssl_decryption"),
+        Recommendation("wireshark_extract_fingerprints"),
     ],
     "ssl": [
-        "wireshark_extract_tls_handshakes",
-        "wireshark_verify_ssl_decryption",
+        Recommendation("wireshark_analyze_protocol", "tls_handshakes"),
+        Recommendation("wireshark_verify_ssl_decryption"),
     ],
     "arp": [
-        "wireshark_detect_arp_spoofing",
+        Recommendation("wireshark_detect_arp_spoofing"),
     ],
     "smtp": [
-        "wireshark_extract_smtp_emails",
+        Recommendation("wireshark_analyze_protocol", "smtp"),
     ],
     "dhcp": [
-        "wireshark_extract_dhcp_info",
+        Recommendation("wireshark_analyze_protocol", "dhcp"),
     ],
     "bootp": [
-        "wireshark_extract_dhcp_info",
+        Recommendation("wireshark_analyze_protocol", "dhcp"),
     ],
     "ftp": [
-        "wireshark_extract_credentials",
+        Recommendation("wireshark_extract_credentials"),
     ],
     "telnet": [
-        "wireshark_extract_credentials",
+        Recommendation("wireshark_extract_credentials"),
     ],
     "ip": [
-        "wireshark_detect_port_scan",
-        "wireshark_detect_dos_attack",
-        "wireshark_analyze_suspicious_traffic",
-        "wireshark_geoip_enrich",
+        Recommendation("wireshark_detect_port_scan"),
+        Recommendation("wireshark_detect_dos_attack"),
+        Recommendation("wireshark_geoip_enrich"),
     ],
     "tcp": [
-        "wireshark_analyze_tcp_health",
+        Recommendation("wireshark_analyze_tcp_health"),
     ],
     "quic": [
-        "wireshark_analyze_quic",
+        Recommendation("wireshark_analyze_protocol", "quic"),
     ],
     "http3": [
-        "wireshark_analyze_quic",
+        Recommendation("wireshark_analyze_protocol", "quic"),
     ],
     "websocket": [
-        "wireshark_analyze_websocket",
+        Recommendation("wireshark_analyze_protocol", "websocket"),
     ],
     "mqtt": [
-        "wireshark_analyze_mqtt",
+        Recommendation("wireshark_analyze_protocol", "mqtt"),
     ],
     "grpc": [
-        "wireshark_analyze_grpc",
+        Recommendation("wireshark_analyze_protocol", "grpc"),
     ],
     "http2": [
-        "wireshark_analyze_grpc",
+        Recommendation("wireshark_analyze_protocol", "grpc"),
+        Recommendation("wireshark_analyze_protocol", "doh"),
+    ],
+    "rtp": [
+        Recommendation("wireshark_analyze_protocol", "rtp"),
+    ],
+    "smb": [
+        Recommendation("wireshark_analyze_protocol", "smb"),
+    ],
+    "smb2": [
+        Recommendation("wireshark_analyze_protocol", "smb"),
+    ],
+    "kerberos": [
+        Recommendation("wireshark_analyze_protocol", "kerberos"),
     ],
     "modbus": [
-        "wireshark_analyze_modbus",
+        Recommendation("wireshark_analyze_protocol", "modbus"),
     ],
     "mbtcp": [
-        "wireshark_analyze_modbus",
+        Recommendation("wireshark_analyze_protocol", "modbus"),
     ],
     "s7comm": [
-        "wireshark_analyze_s7comm",
+        Recommendation("wireshark_analyze_protocol", "s7comm"),
     ],
     "dnp3": [
-        "wireshark_analyze_dnp3",
+        Recommendation("wireshark_analyze_protocol", "dnp3"),
     ],
     "coap": [
-        "wireshark_analyze_coap",
+        Recommendation("wireshark_analyze_protocol", "coap"),
     ],
     "zbee_nwk": [
-        "wireshark_analyze_zigbee",
+        Recommendation("wireshark_analyze_protocol", "zigbee"),
     ],
     "zbee_aps": [
-        "wireshark_analyze_zigbee",
+        Recommendation("wireshark_analyze_protocol", "zigbee"),
     ],
     "btle": [
-        "wireshark_analyze_ble",
+        Recommendation("wireshark_analyze_protocol", "ble"),
     ],
     "wlan": [
-        "wireshark_analyze_wifi",
+        Recommendation("wireshark_analyze_protocol", "wifi"),
     ],
     "wg": [
-        "wireshark_analyze_wireguard",
+        Recommendation("wireshark_analyze_protocol", "wireguard"),
     ],
     "icmp": [
-        "wireshark_detect_icmp_tunnel",
+        Recommendation("wireshark_analyze_protocol", "icmp_tunnel"),
     ],
 }
 
@@ -137,12 +167,11 @@ class ToolRegistry:
 
     def register(self) -> list[str]:
         """Register every analysis tool on the MCP server. Returns registered names."""
+        from .analyze import make_analyze_tools
         from .anomaly import make_anomaly_tools
         from .extract import make_extract_tools
         from .forensics import make_forensics_tools
         from .geoip import make_geoip_tools
-        from .ics import make_ics_tools
-        from .iot import make_iot_tools
         from .protocol import make_protocol_tools
         from .security import make_security_tools
         from .threat import make_threat_tools
@@ -151,10 +180,9 @@ class ToolRegistry:
         factories: list[ToolFactory] = [
             make_extract_tools,
             make_protocol_tools,
+            make_analyze_tools,
             make_security_tools,
             make_threat_tools,
-            make_ics_tools,
-            make_iot_tools,
             make_forensics_tools,
             make_anomaly_tools,
             make_geoip_tools,
@@ -167,6 +195,9 @@ class ToolRegistry:
 
         registered: list[str] = []
         for name in sorted(self._catalog):
+            excluded: frozenset[str] = getattr(self._mcp, "excluded_tools", frozenset())
+            if name in excluded:
+                continue
             try:
                 self._mcp.add_tool(self._catalog[name], name=name)
                 registered.append(name)
@@ -179,22 +210,35 @@ class ToolRegistry:
 
     def _warn_on_unknown_recommendations(self) -> None:
         """Flag any PROTOCOL_TOOL_MAP entry that names a tool we never registered."""
-        referenced = {tool for tools in PROTOCOL_TOOL_MAP.values() for tool in tools}
+        from .analyze import supported_protocols
+
+        referenced = {rec.tool for recs in PROTOCOL_TOOL_MAP.values() for rec in recs}
         for tool_name in sorted(referenced - self._catalog.keys()):
             logger.warning("PROTOCOL_TOOL_MAP references unregistered tool: %s", tool_name)
 
+        # A `protocol` value not in the tool's enum renders a call that fails schema
+        # validation, so catch it here rather than at the caller.
+        known = set(supported_protocols())
+        bad = {rec.protocol for recs in PROTOCOL_TOOL_MAP.values() for rec in recs if rec.protocol} - known
+        for value in sorted(bad):
+            logger.warning("PROTOCOL_TOOL_MAP references unsupported protocol value: %s", value)
+
     def recommended_tools_for_protocols(self, detected_protocols: set[str]) -> list[str]:
-        """Return registered tools relevant to the detected protocols."""
+        """Return calls worth making for the detected protocols, as rendered strings."""
         recommended: set[str] = set()
         for protocol in detected_protocols:
-            for tool_name in PROTOCOL_TOOL_MAP.get(protocol.lower().strip(), []):
-                if tool_name in self._catalog:
-                    recommended.add(tool_name)
+            for rec in PROTOCOL_TOOL_MAP.get(protocol.lower().strip(), []):
+                if rec.tool in self._catalog:
+                    recommended.add(rec.render())
         return sorted(recommended)
 
     def tool_doc(self, tool_name: str) -> str:
-        """Return the first docstring line for a registered tool, or empty string."""
-        fn = self._catalog.get(tool_name)
+        """Return the first docstring line for a registered tool, or empty string.
+
+        Accepts either a bare tool name or a rendered call from
+        `recommended_tools_for_protocols`.
+        """
+        fn = self._catalog.get(tool_name.split("(", 1)[0])
         return (fn.__doc__ or "").strip().split("\n")[0] if fn else ""
 
     @property

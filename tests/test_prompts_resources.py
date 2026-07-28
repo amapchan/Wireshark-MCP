@@ -22,7 +22,6 @@ def test_register_prompts_exposes_expected_prompt_names() -> None:
     assert names == {
         "security_audit",
         "performance_analysis",
-        "ctf_solve",
         "incident_response",
         "traffic_overview",
         "analyze_with_hypothesis",

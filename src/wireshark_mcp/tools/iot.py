@@ -1,20 +1,18 @@
-"""IoT protocol analysis tools for Wireshark MCP."""
+"""IoT protocol extractors for `wireshark_analyze_protocol`."""
 
 import logging
-from typing import Any
 
 from ..tshark.client import TSharkClient
-from .envelope import normalize_tool_result, parse_tool_result, success_response
+from .envelope import ProtocolHandler, normalize_tool_result, parse_tool_result, success_response
 from .formatting import INFO
 
 logger = logging.getLogger("wireshark_mcp")
 
 
-def make_iot_tools(client: TSharkClient) -> list[tuple[str, Any]]:
-    """Build IoT protocol tools."""
+def make_iot_handlers(client: TSharkClient) -> dict[str, ProtocolHandler]:
+    """Build IoT protocol extractors."""
 
-    async def wireshark_analyze_coap(pcap_file: str, limit: int = 100) -> str:
-        """[IoT] Analyze CoAP sessions (methods, URIs, response codes, tokens, observe notifications)."""
+    async def _coap(pcap_file: str, limit: int) -> str:
         fields = [
             "ip.src",
             "ip.dst",
@@ -75,97 +73,7 @@ def make_iot_tools(client: TSharkClient) -> list[tuple[str, Any]]:
 
         return success_response("\n".join(output_parts))
 
-    async def wireshark_analyze_mqtt_deep(pcap_file: str, limit: int = 100) -> str:
-        """[IoT] Deep MQTT 5.0 analysis (topics, QoS, properties, client IDs, auth, session state)."""
-        fields = [
-            "ip.src",
-            "ip.dst",
-            "mqtt.msgtype",
-            "mqtt.topic",
-            "mqtt.clientid",
-            "mqtt.ver",
-            "mqtt.prop.id",
-        ]
-        result = await client.extract_fields(
-            pcap_file,
-            fields,
-            display_filter="mqtt",
-            limit=limit,
-        )
-        wrapped = parse_tool_result(result)
-        if not wrapped["success"]:
-            return normalize_tool_result(wrapped)
-
-        data = wrapped.get("data", "")
-        if not isinstance(data, str) or len(data.strip()) < 20:
-            return success_response("No MQTT traffic found in this capture.")
-
-        output_parts = ["MQTT Deep Analysis"]
-
-        lines = data.strip().splitlines()
-        msg_types: dict[str, int] = {}
-        topics: set[str] = set()
-        client_ids: set[str] = set()
-        versions: set[str] = set()
-
-        for line in lines[1:]:
-            parts = line.split("\t")
-            if len(parts) >= 7:
-                msgtype = parts[2].strip().strip('"')
-                topic = parts[3].strip().strip('"')
-                clientid = parts[4].strip().strip('"')
-                ver = parts[5].strip().strip('"')
-
-                if msgtype:
-                    msg_types[msgtype] = msg_types.get(msgtype, 0) + 1
-                if topic:
-                    topics.add(topic)
-                if clientid:
-                    client_ids.add(clientid)
-                if ver:
-                    versions.add(ver)
-
-        output_parts.append(f"Total MQTT packets: {len(lines) - 1}")
-
-        if msg_types:
-            output_parts.append("\nMessage type distribution:")
-            for mtype, count in sorted(msg_types.items(), key=lambda x: x[1], reverse=True):
-                output_parts.append(f"  Type {mtype}: {count}")
-
-        if client_ids:
-            output_parts.append(f"\n{INFO} Client IDs: {', '.join(sorted(client_ids))}")
-
-        if topics:
-            output_parts.append(f"{INFO} Topics: {', '.join(sorted(topics))}")
-
-        if versions:
-            output_parts.append(f"{INFO} Protocol versions: {', '.join(sorted(versions))}")
-
-        output_parts.append("\n" + data)
-
-        # Extract SUBSCRIBE requests separately
-        sub_fields = [
-            "ip.src",
-            "mqtt.topic",
-            "mqtt.sub.qos",
-        ]
-        sub_result = await client.extract_fields(
-            pcap_file,
-            sub_fields,
-            display_filter="mqtt.msgtype == 8",
-            limit=limit,
-        )
-        sub_wrapped = parse_tool_result(sub_result)
-        if sub_wrapped["success"]:
-            sub_data = sub_wrapped.get("data", "")
-            if isinstance(sub_data, str) and len(sub_data.strip()) > 20:
-                output_parts.append(f"\n{INFO} SUBSCRIBE Requests (msgtype 8):")
-                output_parts.append(sub_data)
-
-        return success_response("\n".join(output_parts))
-
-    async def wireshark_analyze_zigbee(pcap_file: str, limit: int = 100) -> str:
-        """[IoT] Analyze Zigbee network traffic (NWK layer, APS profiles, ZCL clusters and commands)."""
+    async def _zigbee(pcap_file: str, limit: int) -> str:
         fields = [
             "zbee_nwk.src",
             "zbee_nwk.dst",
@@ -226,8 +134,7 @@ def make_iot_tools(client: TSharkClient) -> list[tuple[str, Any]]:
 
         return success_response("\n".join(output_parts))
 
-    return [
-        ("wireshark_analyze_coap", wireshark_analyze_coap),
-        ("wireshark_analyze_mqtt_deep", wireshark_analyze_mqtt_deep),
-        ("wireshark_analyze_zigbee", wireshark_analyze_zigbee),
-    ]
+    return {
+        "coap": _coap,
+        "zigbee": _zigbee,
+    }

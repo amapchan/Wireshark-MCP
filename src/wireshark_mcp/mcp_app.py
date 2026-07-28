@@ -127,14 +127,28 @@ def cap_result_text(text: str, max_chars: int) -> str:
 class WiresharkMCP(FastMCP):
     """FastMCP with a minimal tool schema and a hard ceiling on result size."""
 
-    def __init__(self, *args: Any, max_result_chars: int | None = None, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        *args: Any,
+        max_result_chars: int | None = None,
+        excluded_tools: frozenset[str] | None = None,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(*args, **kwargs)
         self._max_result_chars = max_result_chars if max_result_chars is not None else _resolve_max_result_chars()
+        # Filtering here rather than at each call site means a profile cannot be
+        # bypassed by a registration path that forgets to check it.
+        self._excluded_tools = excluded_tools or frozenset()
 
     @property
     def max_result_chars(self) -> int:
         """Character ceiling applied to every tool result."""
         return self._max_result_chars
+
+    @property
+    def excluded_tools(self) -> frozenset[str]:
+        """Tool names this server will not advertise."""
+        return self._excluded_tools
 
     def add_tool(
         self,
@@ -154,7 +168,15 @@ class WiresharkMCP(FastMCP):
         is only forced when the caller left it unset; passing ``True`` explicitly
         still works, and an explicit ``annotations`` argument likewise wins over
         the default read/write policy.
+
+        A tool excluded by the active profile is dropped here, before the manager
+        sees it, so it is absent from ``tools/list`` and uncallable rather than
+        merely hidden.
         """
+        resolved_name = name or getattr(fn, "__name__", "")
+        if resolved_name in self._excluded_tools:
+            return
+
         if structured_output is None:
             structured_output = False
 

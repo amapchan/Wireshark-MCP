@@ -276,81 +276,8 @@ def make_threat_tools(client: TSharkClient) -> list[tuple[str, Any]]:
 
         return success_response("\n".join(results))
 
-    async def wireshark_analyze_suspicious_traffic(pcap_file: str) -> str:
-        """[Security] Comprehensive anomaly analysis (cleartext, unusual ports, data volumes)."""
-        results: list[str] = []
-        findings: list[str] = []
-
-        # Cleartext protocols
-        cleartext_checks = [
-            ("FTP", "ftp"),
-            ("Telnet", "telnet"),
-            ("HTTP", "http and not tls"),
-            ("SMTP", "smtp"),
-            ("POP3", "pop"),
-            ("IMAP", "imap"),
-        ]
-        for name, dfilter in cleartext_checks:
-            check_result = await client.get_packet_list(pcap_file, limit=5, display_filter=dfilter)
-            check_wrapped = parse_tool_result(check_result)
-            if check_wrapped["success"]:
-                check_data = check_wrapped.get("data", "")
-                if isinstance(check_data, str):
-                    check_lines = [line for line in check_data.strip().splitlines() if line.strip()]
-                    if len(check_lines) > 1:
-                        findings.append(f"Cleartext {name}")
-                        results.append(f"{WARN} {name}: detected")
-
-        # Unusual ports
-        unusual_ports_filter = (
-            "tcp.dstport > 1024 and tcp.dstport != 3306 and tcp.dstport != 3389 "
-            "and tcp.dstport != 5432 and tcp.dstport != 8080 and tcp.dstport != 8443 "
-            "and tcp.dstport != 27017"
-        )
-        unusual_result = await client.extract_fields(
-            pcap_file,
-            ["ip.src", "ip.dst", "tcp.dstport"],
-            display_filter=unusual_ports_filter,
-            limit=100,
-        )
-        unusual_wrapped = parse_tool_result(unusual_result)
-        if unusual_wrapped["success"]:
-            unusual_data = unusual_wrapped.get("data", "")
-            if isinstance(unusual_data, str):
-                port_freq: dict[str, int] = {}
-                for line in unusual_data.strip().splitlines()[1:]:
-                    parts = line.split("\t")
-                    if len(parts) >= 3:
-                        port = parts[2].strip().strip('"')
-                        port_freq[port] = port_freq.get(port, 0) + 1
-                top_ports = sorted(port_freq.items(), key=lambda x: x[1], reverse=True)[:10]
-                if top_ports:
-                    results.append("High ports (>1024):")
-                    for port, count in top_ports:
-                        results.append(f"  :{port} x{count}")
-
-        # Protocol anomalies
-        expert_result = await client.get_expert_info(pcap_file)
-        expert_wrapped = parse_tool_result(expert_result)
-        if expert_wrapped["success"]:
-            expert_data = expert_wrapped.get("data", "")
-            if isinstance(expert_data, str):
-                if "Malformed" in expert_data:
-                    findings.append("Malformed packets")
-                    results.append(f"{CRIT} Malformed packets")
-                if "Reassembly error" in expert_data:
-                    findings.append("Reassembly errors")
-                    results.append(f"{WARN} Reassembly errors")
-
-        results.append(f"\nFindings: {len(findings)}")
-        for i, finding in enumerate(findings, 1):
-            results.append(f"  {i}. {finding}")
-
-        return success_response("\n".join(results))
-
     return [
         ("wireshark_detect_port_scan", wireshark_detect_port_scan),
         ("wireshark_detect_dns_tunnel", wireshark_detect_dns_tunnel),
         ("wireshark_detect_dos_attack", wireshark_detect_dos_attack),
-        ("wireshark_analyze_suspicious_traffic", wireshark_analyze_suspicious_traffic),
     ]

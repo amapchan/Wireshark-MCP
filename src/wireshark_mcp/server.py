@@ -8,12 +8,12 @@ from typing import Literal, cast
 
 from . import __version__
 from .mcp_app import WiresharkMCP
+from .profiles import DEFAULT_PROFILE, PROFILE_NAMES, excluded_tools, profile_description
 from .prompts import register_prompts
 from .resources import register_resources
 from .tools.advanced import register_advanced_tools
 from .tools.agents import register_agent_tools
 from .tools.capture import register_capture_tools
-from .tools.decode import register_decode_tools
 from .tools.edit import register_edit_tools
 from .tools.extract import register_extract_tools
 from .tools.files import register_files_tools
@@ -21,7 +21,6 @@ from .tools.imports import register_import_tools
 from .tools.registry import ToolRegistry, register_open_file_tool
 from .tools.stats import register_stats_tools
 from .tools.suite import register_suite_tools
-from .tools.visualize import register_visualize_tools
 from .tshark.client import WiresharkSuiteClient
 
 logger = logging.getLogger("wireshark_mcp")
@@ -47,13 +46,20 @@ def _configure_windows_event_loop() -> None:
         asyncio.set_event_loop_policy(policy_cls())
 
 
-def _build_server(*, host: str, port: int, log_level: LogLevelName) -> WiresharkMCP:
+def _build_server(*, host: str, port: int, log_level: LogLevelName, profile: str = DEFAULT_PROFILE) -> WiresharkMCP:
     """Build and configure the MCP server with a stable tool surface."""
     # Read allowed directories from environment
     allowed_dirs_env = os.environ.get("WIRESHARK_MCP_ALLOWED_DIRS", "")
     allowed_dirs = [d.strip() for d in allowed_dirs_env.split(",") if d.strip()] or None
 
-    mcp = WiresharkMCP("Wireshark MCP", dependencies=["tshark"], host=host, port=port, log_level=log_level)
+    mcp = WiresharkMCP(
+        "Wireshark MCP",
+        dependencies=["tshark"],
+        host=host,
+        port=port,
+        log_level=log_level,
+        excluded_tools=excluded_tools(profile),
+    )
     client = WiresharkSuiteClient(allowed_dirs=allowed_dirs)
 
     # ── Core tools (always registered) ──────────────────────────────────
@@ -61,8 +67,6 @@ def _build_server(*, host: str, port: int, log_level: LogLevelName) -> Wireshark
     register_stats_tools(mcp, client)
     register_extract_tools(mcp, client)
     register_files_tools(mcp, client)
-    register_decode_tools(mcp)
-    register_visualize_tools(mcp, client)
     register_agent_tools(mcp, client)
     register_suite_tools(mcp, client)
     register_edit_tools(mcp, client)
@@ -80,6 +84,9 @@ def _build_server(*, host: str, port: int, log_level: LogLevelName) -> Wireshark
     # ── Resources and Prompts ───────────────────────────────────────────
     register_resources(mcp, client)
     register_prompts(mcp)
+
+    if profile != DEFAULT_PROFILE:
+        logger.info("Tool profile %r: %s", profile, profile_description(profile))
 
     return mcp
 
@@ -113,6 +120,17 @@ def _add_server_arguments(parser: argparse.ArgumentParser) -> None:
         choices=LOG_LEVELS,
         default="WARNING",
         help="Logging level",
+    )
+    parser.add_argument(
+        "--profile",
+        choices=PROFILE_NAMES,
+        default=DEFAULT_PROFILE,
+        help=(
+            "Tool surface to advertise. "
+            "full: every tool. "
+            "analysis: no live capture or file-writing tools. "
+            "core: analysis minus decryption, dissection overrides, and low-level views."
+        ),
     )
 
 
@@ -296,7 +314,12 @@ def main(argv: Sequence[str] | None = None) -> None:
         stream=sys.stderr,
     )
 
-    mcp = _build_server(host=args.host, port=args.port, log_level=args.log_level)
+    mcp = _build_server(
+        host=args.host,
+        port=args.port,
+        log_level=args.log_level,
+        profile=getattr(args, "profile", DEFAULT_PROFILE),
+    )
     _configure_windows_event_loop()
 
     if args.transport == "sse":
