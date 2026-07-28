@@ -3,7 +3,8 @@
 import pytest
 from conftest import MockTSharkClient
 
-from wireshark_mcp.tools.anomaly import _compute_jitter, _parse_tsv_rows
+from wireshark_mcp.tools.anomaly import _compute_jitter
+from wireshark_mcp.tools.formatting import parse_tsv_rows
 
 
 class TestBeaconDetection:
@@ -57,23 +58,34 @@ class TestComputeJitter:
 
 
 class TestParseTsvRows:
-    """Tests for _parse_tsv_rows helper."""
+    """Tests for the shared parse_tsv_rows helper."""
 
-    def test_basic_parsing(self) -> None:
+    def test_keeps_header_when_not_skipping(self) -> None:
         data = "col1\tcol2\tcol3\nval1\tval2\tval3\nval4\tval5\tval6"
-        rows = _parse_tsv_rows(data)
+        rows = parse_tsv_rows(data, skip_header=False, strip_quotes=False)
         assert len(rows) == 3
         assert rows[0] == ["col1", "col2", "col3"]
         assert rows[1] == ["val1", "val2", "val3"]
 
+    def test_skips_header_by_default(self) -> None:
+        data = "col1\tcol2\nval1\tval2\nval3\tval4"
+        rows = parse_tsv_rows(data)
+        assert len(rows) == 2
+        assert rows[0] == ["val1", "val2"]
+
+    def test_strips_quotes_by_default(self) -> None:
+        data = 'col1\tcol2\n"val1"\t"val2"'
+        rows = parse_tsv_rows(data)
+        assert rows[0] == ["val1", "val2"]
+
     def test_skips_comments(self) -> None:
         data = "# comment\ncol1\tcol2\nval1\tval2"
-        rows = _parse_tsv_rows(data)
+        rows = parse_tsv_rows(data, skip_header=False, strip_quotes=False)
         assert len(rows) == 2
 
     def test_skips_empty_lines(self) -> None:
         data = "col1\tcol2\n\nval1\tval2\n\n"
-        rows = _parse_tsv_rows(data)
+        rows = parse_tsv_rows(data, skip_header=False, strip_quotes=False)
         assert len(rows) == 2
 
 

@@ -30,7 +30,7 @@ def test_register_prompts_exposes_expected_prompt_names() -> None:
     }
 
 
-def test_security_audit_prompt_uses_open_file_and_url_domain_wording() -> None:
+def test_security_audit_prompt_uses_open_file_and_credential_review() -> None:
     mcp = FastMCP("test")
     register_prompts(mcp)
 
@@ -38,7 +38,8 @@ def test_security_audit_prompt_uses_open_file_and_url_domain_wording() -> None:
     text = messages[0].content.text
 
     assert 'wireshark_open_file("demo.pcap")' in text
-    assert "captured URLs and hostnames" in text
+    assert 'wireshark_extract_credentials("demo.pcap")' in text
+    assert "wireshark_check_threats" not in text
 
 
 def test_usage_guide_mentions_open_file_and_compatibility_note() -> None:

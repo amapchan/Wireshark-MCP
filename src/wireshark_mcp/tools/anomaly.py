@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 from ..tshark.client import TSharkClient
 from .envelope import normalize_tool_result, parse_tool_result, success_response
-from .formatting import CRIT, INFO, OK, WARN
+from .formatting import CRIT, INFO, OK, WARN, parse_tsv_rows
 
 logger = logging.getLogger("wireshark_mcp")
 
@@ -26,13 +26,9 @@ def _compute_jitter(intervals: list[float]) -> float:
     return statistics.stdev(intervals) / mean
 
 
-def _parse_tsv_rows(data: str) -> list[list[str]]:
-    """Parse TSV output into rows of fields."""
-    rows = []
-    for line in data.strip().split("\n"):
-        if line and not line.startswith("#"):
-            rows.append(line.split("\t"))
-    return rows
+def _rows_with_header(data: str) -> list[list[str]]:
+    """Rows including the header line (callers slice it off) with cells kept raw."""
+    return parse_tsv_rows(data, skip_header=False, strip_quotes=False)
 
 
 def make_anomaly_tools(client: TSharkClient) -> list[tuple[str, Any]]:
@@ -56,7 +52,7 @@ def make_anomaly_tools(client: TSharkClient) -> list[tuple[str, Any]]:
             return success_response("No SYN-only packets found for beacon analysis.")
 
         # Parse TSV rows (skip header)
-        rows = _parse_tsv_rows(data)
+        rows = _rows_with_header(data)
         if len(rows) < 2:
             return success_response("Insufficient connection data for beacon analysis.")
 
@@ -161,7 +157,7 @@ def make_anomaly_tools(client: TSharkClient) -> list[tuple[str, Any]]:
         if tcp_wrapped["success"]:
             tcp_data = tcp_wrapped.get("data", "")
             if isinstance(tcp_data, str) and len(tcp_data.strip()) > 20:
-                rows = _parse_tsv_rows(tcp_data)
+                rows = _rows_with_header(tcp_data)
                 if len(rows) > 1:
                     for row in rows[1:]:
                         if len(row) < 4:
@@ -193,7 +189,7 @@ def make_anomaly_tools(client: TSharkClient) -> list[tuple[str, Any]]:
         if dns_wrapped["success"]:
             dns_data = dns_wrapped.get("data", "")
             if isinstance(dns_data, str) and len(dns_data.strip()) > 20:
-                rows = _parse_tsv_rows(dns_data)
+                rows = _rows_with_header(dns_data)
                 if len(rows) > 1:
                     for row in rows[1:]:
                         if len(row) < 3:
@@ -240,7 +236,7 @@ def make_anomaly_tools(client: TSharkClient) -> list[tuple[str, Any]]:
         if not isinstance(data, str) or len(data.strip()) < 20:
             return success_response(f"{OK} No protocol anomalies detected (no traffic on non-standard ports).")
 
-        rows = _parse_tsv_rows(data)
+        rows = _rows_with_header(data)
         if len(rows) < 2:
             return success_response(f"{OK} No protocol anomalies detected (insufficient data).")
 

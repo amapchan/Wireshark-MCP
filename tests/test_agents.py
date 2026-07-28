@@ -52,7 +52,6 @@ class TestSecurityAudit:
         output = data["data"]
         assert "File Summary" in output
         assert "Protocols" in output
-        assert "Threat Intel" in output
         assert "Credentials" in output
         assert "Port Scanning" in output
         assert "DNS Anomalies" in output

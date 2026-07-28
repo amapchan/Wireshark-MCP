@@ -26,8 +26,7 @@ Follow this systematic workflow:
 - Use `wireshark_stats_protocol_hierarchy("{pcap_file}")` to see overall protocol distribution.
 - Use `wireshark_stats_endpoints("{pcap_file}")` to identify all communicating hosts.
 
-## Step 2: Threat Intelligence
-- Use `wireshark_check_threats("{pcap_file}")` to check captured URLs and hostnames against URLhaus.
+## Step 2: Credential Exposure
 - Use `wireshark_extract_credentials("{pcap_file}")` to find any plaintext credentials.
 
 ## Step 3: Attack Pattern Detection
@@ -148,7 +147,6 @@ You are a SOC analyst investigating a potential security incident from a network
 - Use `wireshark_stats_endpoints("{pcap_file}")` — identify all hosts involved.
 
 ## Phase 2: IOC Extraction (10 minutes)
-- Use `wireshark_check_threats("{pcap_file}")` — any known malicious URLs or domains?
 - Use `wireshark_list_ips("{pcap_file}")` — get full IP list for SIEM correlation.
 - Use `wireshark_extract_dns_queries("{pcap_file}")` — check for DGA domains.
 - Use `wireshark_detect_dns_tunnel("{pcap_file}")` — check for command & control.
@@ -282,7 +280,6 @@ Look for additional IOCs connected to the original:
 - Use `wireshark_extract_dns_queries("{pcap_file}")` — did the IOC resolve from a suspicious domain?
 - Use `wireshark_extract_tls_handshakes("{pcap_file}")` — any unusual certificates or SNI values?
 - Use `wireshark_follow_stream("{pcap_file}", stream_index=<N>)` on key conversations for payload inspection.
-- Use `wireshark_check_threats("{pcap_file}")` — are related URLs/domains in threat feeds?
 - Check if compromised hosts communicated with other suspicious destinations.
 
 ## Phase 5: Generate Evidence Chain

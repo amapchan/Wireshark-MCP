@@ -39,12 +39,12 @@
 
 ## 这是什么？
 
-一个 [MCP 服务器](https://modelcontextprotocol.io/introduction)，将 `tshark`（及可选的 Wireshark 套件工具）封装为结构化分析接口。支持 Claude Desktop、Claude Code、Cursor、VS Code 等 [18+ MCP 客户端](docs-site/src/content/docs/getting-started/mcp-clients.md)。
+一个 [MCP 服务器](https://modelcontextprotocol.io/introduction)，将 `tshark`（及可选的 Wireshark 套件工具）封装为结构化分析接口。支持 Claude Desktop、Claude Code、Cursor、VS Code 等 18+ MCP 客户端。
 
 ```
 你：    "找出这个抓包中所有访问可疑域名的 DNS 查询。"
-Claude: [调用 wireshark_extract_dns_queries → wireshark_check_threats]
-        "发现 3 条命中 URLhaus 威胁情报的域名查询：..."
+Claude: [调用 wireshark_extract_dns_queries → wireshark_detect_dns_tunnel]
+        "发现重复的高熵 DNS 查询，行为与隧道流量一致：..."
 ```
 
 ---
@@ -60,7 +60,7 @@ wireshark-mcp install   # 自动配置所有检测到的 MCP 客户端
 
 重启你的 AI 客户端即可。
 
-如有问题运行 `wireshark-mcp doctor` 诊断。手动配置或平台特定说明见 [docs-site/src/content/docs/reference/manual-configuration.md](docs-site/src/content/docs/reference/manual-configuration.md)。
+如有问题运行 `wireshark-mcp doctor` 诊断。手动配置或平台特定说明见 [docs/manual-configuration_zh.md](docs/manual-configuration_zh.md)。
 
 ---
 
@@ -86,7 +86,7 @@ wireshark-mcp install   # 自动配置所有检测到的 MCP 客户端
 | **数据包分析** | 数据包列表、详情、字节、上下文、流追踪、搜索 | 8 |
 | **数据提取** | HTTP 请求、DNS 查询、TLS 握手、凭据、字段提取 | 11 |
 | **统计** | 协议层次、端点、会话、I/O 图、HTTP/SMB/RTP 统计、绘图 | 13 |
-| **安全与威胁** | 威胁情报、凭据扫描、端口扫描、DNS 隧道、DoS、信标、外泄 | 13 |
+| **安全与威胁** | 凭据扫描、端口扫描、DNS 隧道、DoS、信标、外泄 | 12 |
 | **协议深入** | TCP 健康、QUIC、WebSocket、gRPC、MQTT、TLS/WPA 解密、指纹 | 11 |
 | **工控/物联网/无线** | Modbus、S7comm、DNP3、CoAP、Zigbee、BLE、Wi-Fi、WireGuard | 8 |
 | **取证与解码** | 文件雕刻、证据链、YARA 扫描、载荷解码、GeoIP | 8 |
@@ -94,16 +94,28 @@ wireshark-mcp install   # 自动配置所有检测到的 MCP 客户端
 
 服务器仅需 `tshark` 即可启动。可选工具（`capinfos`、`mergecap`、`editcap`、`dumpcap`、`text2pcap`）自动检测，存在时启用额外功能。
 
+### 上下文开销
+
+工具列表会随客户端的每一次请求进入 prompt 前缀，因此它的体积是每请求的固定成本。当前对外暴露的表面约为 27 KB（约 6.9k tokens）的 schema，加上约 5 KB 的 annotations；并且它在重启之间逐字节一致，客户端可以缓存该前缀，而不必每个会话重新读取。
+
+工具结果同样有上限，因为一条结果会在会话余下的全部轮次里一直留在上下文中。超过 8000 字符的输出会保留首尾并标注截断位置，其余部分请用工具自带的 `offset` / `limit` / `display_filter` 参数翻页。调整上限：
+
+```bash
+export WIRESHARK_MCP_MAX_RESULT_CHARS=16000
+```
+
+每个工具都声明了自己是只读还是写入，因此客户端可以自动放行 74 个只读分析工具，同时仍然对会创建文件的 11 个工具（实时抓包、合并、过滤保存、editcap、text2pcap、对象导出）进行确认。
+
 ---
 
 ## 文档
 
 | 主题 | 链接 |
 |------|------|
-| 平台配置（macOS/Linux/Windows） | [docs-site/src/content/docs/reference/toolchain.md](docs-site/src/content/docs/reference/toolchain.md) |
-| 手动客户端配置 | [docs-site/src/content/docs/reference/manual-configuration.md](docs-site/src/content/docs/reference/manual-configuration.md) |
-| Prompt 模板 | [docs-site/src/content/docs/reference/playbooks.mdx](docs-site/src/content/docs/reference/playbooks.mdx) |
-| 发布清单 | [docs-site/src/content/docs/reference/changelog.md](docs-site/src/content/docs/reference/changelog.md) |
+| 平台配置（macOS/Linux/Windows） | [docs/platform-validation_zh.md](docs/platform-validation_zh.md) |
+| 手动客户端配置 | [docs/manual-configuration_zh.md](docs/manual-configuration_zh.md) |
+| Prompt 模板 | [docs/prompt-engineering_zh.md](docs/prompt-engineering_zh.md) |
+| 发布清单 | [docs/release-checklist.md](docs/release-checklist.md) |
 | 贡献指南 | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | 更新日志 | [GitHub Releases](https://github.com/bx33661/Wireshark-MCP/releases) |
 | 安全策略 | [SECURITY.md](SECURITY.md) |

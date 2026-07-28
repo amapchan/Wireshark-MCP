@@ -30,4 +30,3 @@ Wireshark MCP executes `tshark` as a subprocess. Keep the following in mind:
 - **File paths**: The server accepts pcap file paths from the MCP client. Ensure your MCP client is trusted.
 - **Credential extraction**: `wireshark_extract_credentials` scans for plaintext credentials in captures. Handle results with care.
 - **Live capture**: `wireshark_capture` requires appropriate system permissions (`wireshark` group or root).
-- **Threat intelligence**: `wireshark_check_threats` may refresh cached URLhaus data via outbound requests.

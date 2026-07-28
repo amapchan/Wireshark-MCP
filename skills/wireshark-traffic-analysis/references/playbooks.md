@@ -46,7 +46,6 @@ Recommended flow:
 1. Start with the triage playbook.
 2. Run `wireshark_security_audit` for a broad first pass.
 3. Verify specific signals with:
-   - `wireshark_check_threats`
    - `wireshark_extract_credentials`
    - `wireshark_detect_port_scan`
    - `wireshark_detect_dns_tunnel`

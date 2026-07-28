@@ -1,8 +1,23 @@
 """Tests for decode tools (pure functions, no tshark dependency)."""
 
 import gzip
+import json
 
-from wireshark_mcp.tools.decode import _calculate_score, _try_decode
+from mcp.server.fastmcp import FastMCP
+
+from wireshark_mcp.tools.decode import _calculate_score, _try_decode, register_decode_tools
+
+
+def _decode_tools():
+    mcp = FastMCP("test")
+    register_decode_tools(mcp)
+    return mcp
+
+
+def _call(mcp, name, **kwargs):
+    import asyncio
+
+    return json.loads(asyncio.run(mcp._tool_manager.call_tool(name, kwargs)))
 
 
 class TestTryDecode:

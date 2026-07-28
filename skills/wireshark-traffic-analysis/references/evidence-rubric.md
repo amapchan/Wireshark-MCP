@@ -132,7 +132,6 @@ Counterexamples:
 Good confirmation tools:
 
 - `wireshark_extract_tls_handshakes`
-- `wireshark_check_threats`
 - `wireshark_follow_stream`
 
 ### TCP health problems

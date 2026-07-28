@@ -30,10 +30,6 @@ def _extract_data(result: str) -> str | None:
     return None
 
 
-def _coerce_int(value: object) -> int:
-    return value if isinstance(value, int) else int(value) if isinstance(value, str) and value.isdigit() else 0
-
-
 async def _safe_run(coro: Any, default: str | None = None) -> str | None:
     try:
         return await coro  # type: ignore[no-any-return]
@@ -88,39 +84,6 @@ async def _run_security_audit(client: TSharkClient, pcap_file: str) -> str:
         report.append(", ".join(sorted(detected_protocols)))
     else:
         report.append("No protocol hierarchy available")
-
-    # Phase 2-7: Run independent analyses concurrently
-    async def _phase_threat_intel() -> tuple[list[str], list[str], int]:
-        """Threat intelligence check."""
-        phase_report: list[str] = []
-        phase_findings: list[str] = []
-        phase_risk = 0
-        try:
-            from .security import analyze_urlhaus_matches
-
-            urlhaus_summary = await analyze_urlhaus_matches(client, pcap_file)
-            urls_checked = _coerce_int(urlhaus_summary.get("urls_checked", 0))
-            domains_checked = _coerce_int(urlhaus_summary.get("domains_checked", 0))
-            malicious_urls = urlhaus_summary.get("malicious_urls", [])
-            malicious_domains = urlhaus_summary.get("malicious_domains", [])
-
-            phase_report.append(f"URLs checked: {urls_checked}, Domains checked: {domains_checked}")
-            if malicious_urls or malicious_domains:
-                phase_risk += 40
-                phase_findings.append(f"{CRIT} URL/domain matched URLhaus feed")
-                if isinstance(malicious_urls, list) and malicious_urls:
-                    phase_report.append(f"{CRIT} Malicious URLs: {len(malicious_urls)}")
-                    for url in malicious_urls[:5]:
-                        phase_report.append(f"  {url}")
-                if isinstance(malicious_domains, list) and malicious_domains:
-                    phase_report.append(f"{CRIT} Malicious domains: {len(malicious_domains)}")
-                    for domain in malicious_domains[:5]:
-                        phase_report.append(f"  {domain}")
-            else:
-                phase_report.append(f"{OK} No matches against threat feeds")
-        except Exception as exc:
-            phase_report.append(f"{WARN} Threat feed unavailable: {exc}")
-        return phase_report, phase_findings, phase_risk
 
     async def _phase_credentials() -> tuple[list[str], list[str], int]:
         """Credential exposure check."""
@@ -326,14 +289,12 @@ async def _run_security_audit(client: TSharkClient, pcap_file: str) -> str:
 
     # Run all independent phases concurrently
     (
-        (threat_report, threat_findings, threat_risk),
         (cred_report, cred_findings, cred_risk),
         (scan_report, scan_findings, scan_risk),
         (dns_report, dns_findings, dns_risk),
         (cleartext_report, cleartext_findings, cleartext_risk),
         (expert_report, expert_findings, expert_risk),
     ) = await asyncio.gather(
-        _phase_threat_intel(),
         _phase_credentials(),
         _phase_port_scan(),
         _phase_dns(detected_protocols),
@@ -342,32 +303,27 @@ async def _run_security_audit(client: TSharkClient, pcap_file: str) -> str:
     )
 
     # Assemble report in order
-    report.append(f"\n{section('3. Threat Intel')}")
-    report.extend(threat_report)
-    findings.extend(threat_findings)
-    risk_score += threat_risk
-
-    report.append(f"\n{section('4. Credentials')}")
+    report.append(f"\n{section('3. Credentials')}")
     report.extend(cred_report)
     findings.extend(cred_findings)
     risk_score += cred_risk
 
-    report.append(f"\n{section('5. Port Scanning')}")
+    report.append(f"\n{section('4. Port Scanning')}")
     report.extend(scan_report)
     findings.extend(scan_findings)
     risk_score += scan_risk
 
-    report.append(f"\n{section('6. DNS Anomalies')}")
+    report.append(f"\n{section('5. DNS Anomalies')}")
     report.extend(dns_report)
     findings.extend(dns_findings)
     risk_score += dns_risk
 
-    report.append(f"\n{section('7. Cleartext Protocols')}")
+    report.append(f"\n{section('6. Cleartext Protocols')}")
     report.extend(cleartext_report)
     findings.extend(cleartext_findings)
     risk_score += cleartext_risk
 
-    report.append(f"\n{section('8. Protocol Anomalies')}")
+    report.append(f"\n{section('7. Protocol Anomalies')}")
     report.extend(expert_report)
     findings.extend(expert_findings)
     risk_score += expert_risk
