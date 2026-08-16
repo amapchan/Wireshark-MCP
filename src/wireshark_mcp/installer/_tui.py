@@ -54,21 +54,21 @@ def _read_key_windows() -> str:
     import importlib
 
     msvcrt = importlib.import_module("msvcrt")
-    ch = msvcrt.getch().decode("mbcs", errors="replace")
-    if ch in ("\x00", "\xe0"):
-        ch2 = msvcrt.getch().decode("mbcs", errors="replace")
-        return {"H": "UP", "P": "DOWN"}.get(ch2, "")
+    ch = msvcrt.getch()
+    if ch in (b"\x00", b"\xe0"):
+        ch2 = msvcrt.getch()
+        return {b"H": "UP", b"P": "DOWN"}.get(ch2, "")
     return {
-        " ": "SPACE",
-        "\r": "ENTER",
-        "\n": "ENTER",
-        "a": "a",
-        "A": "a",
-        "n": "n",
-        "N": "n",
-        "q": "ESC",
-        "Q": "ESC",
-        "\x03": "ESC",
+        b" ": "SPACE",
+        b"\r": "ENTER",
+        b"\n": "ENTER",
+        b"a": "a",
+        b"A": "a",
+        b"n": "n",
+        b"N": "n",
+        b"q": "ESC",
+        b"Q": "ESC",
+        b"\x03": "ESC",
     }.get(ch, "")
 
 
